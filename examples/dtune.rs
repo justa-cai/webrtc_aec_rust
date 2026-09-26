@@ -4,9 +4,9 @@
 //! - level_db：输出/麦克风电平比（越高=保近端越好，但可能含回声残留）
 //! - echo_leak：输出与远端的归一化互相关峰值（越低=回声残留越少）
 
-use webrtc_linear_aec_rust::constants::{SuppressorConfig, FRAME_SIZE};
-use webrtc_linear_aec_rust::EchoCanceller;
-use webrtc_linear_aec_rust::simple_ns::{NsLevel, SimpleNs};
+use webrtc_aec_rust::constants::{SuppressorConfig, FRAME_SIZE};
+use webrtc_aec_rust::EchoCanceller;
+use webrtc_aec_rust::simple_ns::{NsLevel, SimpleNs};
 
 struct Rng(u64);
 impl Rng {

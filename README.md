@@ -1,4 +1,4 @@
-# webrtc-linear-aec-rust
+# webrtc-aec-rust
 
 WebRTC AEC3 **线性部分**（线性 AEC + 时延估计）的 Rust 参考实现。
 

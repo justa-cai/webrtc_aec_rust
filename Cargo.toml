@@ -1,5 +1,5 @@
 [package]
-name = "webrtc-linear-aec-rust"
+name = "webrtc-aec-rust"
 version = "0.1.0"
 edition = "2021"
 description = "WebRTC AEC3 线性 AEC + 时延估计的 Rust 参考实现（不含非线性抑制器）"
@@ -10,7 +10,7 @@ rustfft = "6"
 hound = "3.5"
 
 [lib]
-name = "webrtc_linear_aec_rust"
+name = "webrtc_aec_rust"
 path = "src/lib.rs"
 
 [[bin]]

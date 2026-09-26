@@ -81,7 +81,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "webrtc-linear-aec-rust"
+name = "webrtc-aec-rust"
 version = "0.1.0"
 dependencies = [
  "hound",

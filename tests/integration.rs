@@ -3,8 +3,8 @@
 mod common;
 
 use common::{conv, make_rir, History, Rng};
-use webrtc_linear_aec_rust::constants::FRAME_SIZE;
-use webrtc_linear_aec_rust::EchoCanceller;
+use webrtc_aec_rust::constants::FRAME_SIZE;
+use webrtc_aec_rust::EchoCanceller;
 
 /// 场景驱动器：render WGN + 延迟 RIR 回声 +（可选）近端噪声。
 struct Scenario {

@@ -1,5 +1,5 @@
-use webrtc_linear_aec_rust::block_processor::BlockProcessor;
-use webrtc_linear_aec_rust::constants::{BLOCK_SIZE, FRAME_SIZE};
+use webrtc_aec_rust::block_processor::BlockProcessor;
+use webrtc_aec_rust::constants::{BLOCK_SIZE, FRAME_SIZE};
 
 fn main() {
     let mut reader = hound::WavReader::open("tmp/farend_speech.wav").unwrap();

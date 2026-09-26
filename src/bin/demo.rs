@@ -7,8 +7,8 @@
 //!   WAV 模式（16 kHz 单声道 s16），far=远端参考，near=麦克风，out=线性 AEC 输出
 
 use std::time::Instant;
-use webrtc_linear_aec_rust::constants::FRAME_SIZE;
-use webrtc_linear_aec_rust::EchoCanceller;
+use webrtc_aec_rust::constants::FRAME_SIZE;
+use webrtc_aec_rust::EchoCanceller;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -62,7 +62,7 @@ fn make_rir(delay_samples: usize, tail_blocks: usize) -> Vec<f64> {
 }
 
 fn selftest() {
-    println!("=== webrtc-linear-aec-rust 自测 ===");
+    println!("=== webrtc-aec-rust 自测 ===");
     println!("场景: 8 s WGN render (RMS≈1732) + 100 ms 延迟/单位能量指数衰减 RIR\n");
 
     let delay_samples = 1600usize;
