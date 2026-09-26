@@ -451,8 +451,9 @@ impl SuppressionGain {
         let mut g_ch = [1.0f32; FFT_LENGTH_BY_2_PLUS_1];
         if cfg.nearend_masker {
             let mut masker = *n2;
+            let alpha = cfg.nearend_masker_alpha.clamp(0.0, 1.0);
             for k in 0..FFT_LENGTH_BY_2_PLUS_1 {
-                masker[k] = masker[k].max(nearend[k]);
+                masker[k] = masker[k].max(alpha * nearend[k]);
             }
             gain_to_no_audible_echo(&nearend, &wre, &masker, params, &mut g_ch);
         } else {

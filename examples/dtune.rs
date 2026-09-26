@@ -97,6 +97,16 @@ fn main() {
     g5.nearend_masker = true;
     groups.push(("L3 近端掩蔽", g5));
 
+    let mut ga = SuppressorConfig::default();
+    ga.nearend_masker = true;
+    ga.nearend_masker_alpha = 0.6;
+    groups.push(("L3a0.6", ga));
+
+    let mut gb = SuppressorConfig::default();
+    gb.nearend_masker = true;
+    gb.nearend_masker_alpha = 0.35;
+    groups.push(("L3a0.35", gb));
+
     let mut g5b = SuppressorConfig::default();
     g5b.nearend_masker = true;
     g5b.nearend_tuning.hf.emr_transparent = 0.5;
@@ -148,7 +158,7 @@ fn main() {
 
     // 多通道对比
     use std::io::Write;
-    let picks = ["baseline(默认)", "L3 近端掩蔽", "全家桶"];
+    let picks = ["baseline(默认)", "L3 近端掩蔽", "L3a0.6"];
     let n = near.len();
     let mut writer = hound::WavWriter::create("tmp/dtune_compare.wav", hound::WavSpec {
         channels: (1 + picks.len()) as u16,
@@ -164,6 +174,6 @@ fn main() {
         }
     }
     writer.finalize().unwrap();
-    println!("多通道对比: tmp/dtune_compare.wav [1]=mic [2]=baseline [3]=L3近端掩蔽 [4]=全家桶");
+    println!("多通道对比: tmp/dtune_compare.wav [1]=mic [2]=baseline [3]=L3掩蔽α=1 [4]=L3掩蔽α=0.6");
     
 }
