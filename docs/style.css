@@ -1,0 +1,108 @@
+/* AEC 演示页 —— 自适应布局 */
+:root {
+  --bg: #0f1117;
+  --panel: #171a23;
+  --panel-2: #1d2130;
+  --text: #e4e7f0;
+  --muted: #8b91a5;
+  --accent: #4f8cff;
+  --accent-2: #37d4a0;
+  --track-mic: #ff6b81;
+  --track-far: #ffb454;
+  --track-linear: #4f8cff;
+  --track-nonlinear: #37d4a0;
+  --radius: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: clamp(14px, 1.2vw + 10px, 17px); }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header { padding: 1.2rem 1.5rem 0.8rem; }
+header h1 { font-size: 1.35rem; font-weight: 650; }
+.subtitle { color: var(--muted); font-size: 0.85rem; margin-top: 0.35rem; }
+.subtitle a { color: var(--accent); text-decoration: none; }
+.subtitle a:hover { text-decoration: underline; }
+
+main { flex: 1; padding: 0 1.5rem 1.5rem; max-width: 1200px; width: 100%; margin: 0 auto; }
+
+/* —— 管线图 —— */
+.pipeline {
+  display: flex; align-items: stretch; gap: 0.5rem;
+  flex-wrap: wrap; margin-bottom: 1.4rem;
+}
+.stage {
+  flex: 1 1 160px;
+  background: var(--panel);
+  border: 1px solid #262b3d;
+  border-radius: var(--radius);
+  padding: 0.7rem 0.9rem;
+  min-width: 150px;
+}
+.stage-title { font-size: 0.9rem; font-weight: 650; margin-bottom: 0.3rem; }
+.stage:nth-child(1) .stage-title { color: var(--track-far); }
+.stage:nth-child(3) .stage-title { color: var(--track-mic); }
+.stage:nth-child(5) .stage-title { color: var(--track-linear); }
+.stage:nth-child(7) .stage-title { color: var(--track-nonlinear); }
+.stage-desc { font-size: 0.75rem; color: var(--muted); line-height: 1.5; }
+.arrow {
+  display: flex; align-items: center; color: var(--muted); font-size: 1.1rem;
+  flex: 0 0 auto;
+}
+/* 窄屏时箭头转下行 */
+@media (max-width: 640px) {
+  .arrow { display: none; }
+  .stage { flex-basis: 100%; }
+}
+
+/* —— 播放器 —— */
+#player { background: var(--panel); border: 1px solid #262b3d; border-radius: var(--radius); padding: 1rem; }
+#transport { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.9rem; flex-wrap: wrap; }
+#play-btn {
+  background: var(--accent); color: #fff; border: none; border-radius: 999px;
+  min-width: 6.2rem; padding: 0.55rem 1.3rem; font-size: 0.95rem; font-weight: 650;
+  cursor: pointer; transition: filter 0.15s, opacity 0.15s;
+}
+#play-btn:hover:not(:disabled) { filter: brightness(1.15); }
+#play-btn:disabled { opacity: 0.45; cursor: wait; }
+#play-btn.playing { background: var(--accent-2); }
+#time-label { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.9rem; }
+
+#tracks { display: flex; flex-direction: column; gap: 0.7rem; }
+.track {
+  display: flex; align-items: center; gap: 0.8rem;
+  background: var(--panel-2); border-radius: var(--radius);
+  padding: 0.55rem 0.8rem;
+}
+.track-controls {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.3rem;
+  flex: 0 0 auto; min-width: 8.2rem;
+}
+.track-name { font-size: 0.85rem; font-weight: 650; white-space: nowrap; }
+.track-tags { display: flex; gap: 0.35rem; }
+.btn {
+  border: 1px solid #333a52; background: transparent; color: var(--muted);
+  font-size: 0.68rem; padding: 0.15rem 0.6rem; border-radius: 999px; cursor: pointer;
+  transition: all 0.12s;
+}
+.btn:hover { border-color: var(--accent); color: var(--text); }
+.btn.active-mute { background: #ff6b81; border-color: #ff6b81; color: #fff; }
+.btn.active-solo { background: var(--accent-2); border-color: var(--accent-2);; color: #04231a; }
+.track-wave { flex: 1 1 auto; min-width: 0; height: 64px; position: relative; }
+.track-wave canvas { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 6px; cursor: crosshair; }
+
+/* —— 说明 —— */
+.notes { margin-top: 1.4rem; background: var(--panel); border: 1px solid #262b3d; border-radius: var(--radius); padding: 1rem 1.2rem; }
+.notes h2 { font-size: 1rem; margin-bottom: 0.6rem; }
+.notes ul { padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.45rem; }
+.notes li { font-size: 0.85rem; color: var(--muted); line-height: 1.65; }
+.notes b { color: var(--text); }
+
+footer { padding: 0.9rem 1.5rem; border-top: 1px solid #1d2130; }
+footer p { color: var(--muted); font-size: 0.75rem; }

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebRTC AEC3 Rust · 算法处理演示</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>WebRTC AEC3（Rust 移植）· 处理过程演示</h1>
+  <p class="subtitle">同一段双讲素材，经过 AEC 管线各阶段的音频对照 ·
+     <a href="https://github.com/justa-cai/webrtc_aec_rust" target="_blank">GitHub 仓库</a></p>
+</header>
+
+<main>
+  <section class="pipeline">
+    <div class="stage">
+      <div class="stage-title">① 远端参考</div>
+      <div class="stage-desc">扬声器播放的信号，AEC 的已知输入</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="stage">
+      <div class="stage-title">② 近端麦克风</div>
+      <div class="stage-desc">近端语音 + 扬声器回声 + 房间混响</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="stage">
+      <div class="stage-title">③ 时延对齐 + 线性 AEC</div>
+      <div class="stage-desc">匹配滤波器组估计时延 → 分区频域自适应滤波（NLMS）</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="stage">
+      <div class="stage-title">④ 非线性抑制（NLP）</div>
+      <div class="stage-desc">残余回声估计 + 掩蔽增益 + 舒适噪声 + 双讲近端保护</div>
+    </div>
+  </section>
+
+  <section id="player">
+    <div id="transport">
+      <button id="play-btn" class="primary" disabled>加载中…</button>
+      <span id="time-label">00:00 / 00:10</span>
+    </div>
+    <div id="tracks"></div>
+  </section>
+
+  <section class="notes">
+    <h2>听感指南</h2>
+    <ul>
+      <li><b>近端麦克风</b>：能同时听到近端说话人与远端语音的回声（约 168ms 延迟）</li>
+      <li><b>线性输出</b>：自适应滤波器卷积对消后的残差——回声被部分消除，
+          但双讲期间滤波器为保护近端而放缓更新，残留明显</li>
+      <li><b>非线性输出</b>：在线性输出基础上，抑制器按"回声/近端比 + 掩蔽阈"逐频点压制残余，
+          并注入舒适噪声填补频谱空隙；含双讲近端掩蔽优化</li>
+      <li>使用每轨的 <b>静音/独奏</b> 对比聆听，感受各阶段差异</li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  <p>音频：公开双讲测试样本（16 kHz / 10 s）· 处理：webrtc_aec_rust（线性+NLP 全家桶配置）</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
