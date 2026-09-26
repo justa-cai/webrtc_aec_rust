@@ -313,6 +313,11 @@ impl<'a> RenderBufferView<'a> {
         self.ffts
     }
 
+    /// 频谱环（供残余回声估计的窗口扫描，对应 `GetSpectrumBuffer`）。
+    pub fn spectrum_buffer_ref(&self) -> &'a Ring<[f32; FFT_LENGTH_BY_2_PLUS_1]> {
+        self.spectra
+    }
+
     /// 当前对齐位置（`Position()` = fft.read；spectra/ffts 的读写索引必须一致）。
     pub fn position(&self) -> isize {
         debug_assert!(self.spectra.read() == self.ffts.read());

@@ -13,8 +13,12 @@ WebRTC AEC3 **线性部分**（线性 AEC + 时延估计）的 Rust 参考实现
   滑动直方图双门限投票、前回声（pre-echo）对齐、时钟漂移检测、缓冲迟滞
 - ✅ 组装：render 多级缓冲与延迟对齐、AecState 收敛门控、FilterAnalyzer、
   10 ms 帧顶层 API
-- ❌ 不含：非线性残余抑制（SuppressionGain/CNG/ResidualEchoEstimator）、多声道、
-  >16 kHz 高带、SIMD、透明模式、ML 残余估计、外部时延估计路径、ERLE/ERL 完整估计器
+- ✅ 非线性层（NLP）：残余回声 R2 估计（线性 S2/ERLE + 非线性 X2·gain² +
+  混响尾）、N2 噪声底与舒适噪声（LCG 随机相位）、SuppressionGain（近端主导
+  检测、enr/emr 掩蔽增益、速率限制、可闻性加权）、SuppressionFilter（WOLA）、
+  简版 ERLE 估计、ML 残余估计 trait 注入点
+- ❌ 不含：多声道、>16 kHz 高带（UpperBandsGain 恒 1.0）、SIMD、透明模式
+  真实分类器、ML 推理本体、外部时延估计路径
 
 信号域：**16 kHz、单声道**；块 64 样本（4 ms）、FFT 128 点、65 bin、250 块/s——与 AEC3 相同。
 
@@ -76,6 +80,14 @@ capture 帧(160) ─► BlockProcessor
 | `echo_remover.rs` | `aec3/echo_remover.cc`（线性部分） | §7.3/7.4 |
 | `block_processor.rs` | `aec3/block_processor.cc` | §2 |
 | `echo_canceller.rs` | `aec3/echo_canceller3.cc`（帧调度；FIFO 组块等价于 FrameBlocker） | §1 |
+| `residual_echo_estimator.rs` | `aec3/residual_echo_estimator.cc` | §2（NLP 数据流） |
+| `reverb_model.rs`（简化） | `aec3/reverb_model.cc` + `reverb_frequency_response.cc` | — |
+| `erle_estimator.rs`（简化） | `aec3/subband_erle_estimator.cc` | §8 |
+| `comfort_noise_generator.rs` | `aec3/comfort_noise_generator.cc` | — |
+| `suppression_gain.rs` | `aec3/suppression_gain.cc` + `dominant_nearend_detector.cc` +
+  `moving_average_spectrum.cc` | §6 |
+| `suppression_filter.rs` | `aec3/suppression_filter.cc`（WOLA；无 2/128 因子） | — |
+| `neural_residual_echo_estimator.rs` | `api/audio/neural_residual_echo_estimator.h`（trait） | — |
 
 原理文档：[docs/linear-aec-principles.md](docs/linear-aec-principles.md)（章节号见上表右列）。
 
@@ -101,6 +113,22 @@ H 的绝对尺度被自适应吸收；`H2`/`erl` 只用于相对比较（泄漏�
 
 ## 已知简化 / 偏差（与上游逐项对照）
 
+### 非线性层专项
+
+| 项 | 说明 |
+|---|---|
+| ReverbDecayEstimator 自适应 | decay 恒 0.83（`default_len ≥ 0` 时上游亦不自适应） |
+| ReverbFrequencyResponse | 用 `max(tail, direct·avg_decay)` 现算（avg_decay=Σtail/Σdirect），
+  跳过 ERLE 质量平滑与平稳块门控 |
+| ERLE 估计器 | 简版爬升（收敛且非双讲时向 min(Y2/E2, erle·2) 以 0.05 平滑），
+  无 onset 补偿双轨 |
+| 透明模式 | 恒不激活 |
+| SubbandNearendDetector | 未实现（配置字段保留，默认关） |
+| ML 推理本体 | `NeuralResidualEchoEstimator` trait 留注入点，默认 None |
+| 高带（>8 kHz） | 16 kHz 单带下 UpperBandsGain 恒 1.0，高带 WOLA 分支保留接口未启用 |
+| 本仓库版本基线 | suppression_gain.cc 为 M100~M110 时代实现（无上游新版的四态状态机/
+  moving_tuning/transient），移植以此为准 |
+
 | 项 | 说明 |
 |---|---|
 | 非线性抑制 | 未移植（上游 `SuppressionGain`/`SuppressionFilter`/CNG/`ResidualEchoEstimator`）。双讲残留与非线性失真残余在真实产品中由该层处理 |
@@ -114,9 +142,23 @@ H 的绝对尺度被自适应吸收；`H2`/`erl` 只用于相对比较（泄漏�
 | 帧调度 | 160 样本样本 FIFO 组块，等价于上游 subframe/FrameBlocker 机制（每 2 帧 5 块） |
 | API 级增益变化标志 | 恒 false（上游由应用层传入） |
 
-## 测试覆盖（49 项）
+## 端到端行为基线（dashscope 双讲真实样本）
 
-单元（43）：FFT 往返/DFT 对照/PaddedFft 等价/窗表；环形方向与逆序写入/latency；
+| 指标 | 纯线性 | 线性+NLP |
+|---|---|---|
+| 逐秒段 ERLE（含近端语音，低估回声压制） | 0.3~6.4 dB | **5~34 dB** |
+| 双讲段（2–8 s） | 2.6~4.5 dB | 5~11 dB |
+| RTF（release） | 0.021 | **0.0098** |
+
+试听：`tmp/listen_3ch_nlp.wav`（左=far / 中=mic 原始 / 右=NLP 输出）。
+
+## 测试覆盖（67 项）
+
+单元（61）：原 43 项 + NLP（LCG 确定性、N2 min 跟踪/饱和冻结、WOLA 全增益重建、
+钳位、检测器状态机触发/保持/提前退出、增益单调性、静默直通、下降限速、
+泄漏积分器收敛、简化混响频响、ERLE 爬升/冻结/半带钳位、R2 线性/非线性/饱和模式、
+渲染噪声底）。
+原单元（43）：FFT 往返/DFT 对照/PaddedFft 等价/窗表；环形方向与逆序写入/latency；
 降采样通带增益/阻带衰减/稳定性；匹配滤波收敛（lag∈{10,400,1000}）/前回声扫描；
 直方图双门限/pre-echo 候选/并列取小；迟滞；时钟漂移模式；约束尾部清零/长度渐变/
 Scale/SetFilter；失配估计器；增益保护与 H_error 钳位；ERLE 固定对齐（0/100 ms）；

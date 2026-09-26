@@ -223,6 +223,11 @@ const SQRT_HANNING_128: [f32; FFT_LENGTH] = [
     0.02454122852291,
 ];
 
+/// 访问 √Hann128 窗表（供 SuppressionFilter 的 WOLA 合成使用）。
+pub fn sqrt_hanning(i: usize) -> f32 {
+    SQRT_HANNING_128[i]
+}
+
 /// 时域窗类型（`Aec3Fft::Window`）。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Window {

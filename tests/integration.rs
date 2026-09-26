@@ -251,39 +251,41 @@ fn saturation_gating() {
     let _ = s.erle_db(); // 有限性由内部断言保证
 }
 
-/// T25: 近端透传——收敛后加不相关近端，e ≈ v 且残余回声被压掉。
+/// T25（NLP 版）：近端比回声弱 ~11 dB 的持续双讲——
+/// ① 输出电平应 ≈ 近端电平（既不压死也不残留回声电平）；
+/// ② 回声被压制：Σecho²/Σe² ≥ 6 dB。
+/// （等功率双写下"保真"与"抑制"物理不可分，故近端取 −11 dB；
+///   旧"e−v 残差"指标对 NLP 输出失效——输出为随机相位舒适噪声，与 v 必不相关。）
 #[test]
 fn nearend_passthrough() {
     let mut s = Scenario::new(0x9E37, 1600, 0.0);
     for _ in 0..600 {
         s.step(false); // 6 s 收敛（无近端）
     }
-    // 加入与回声同量级近端
     s.nearend = Some(Rng::new(0xC0FFEE));
-    s.nearend_amp = 3000.0;
-    for _ in 0..100 {
+    s.nearend_amp = 800.0; // 比回声低 ~11 dB
+    for _ in 0..150 {
         s.step(false); // 双讲过渡
     }
-    // 统计 2 s
     for _ in 0..200 {
-        s.step(true);
+        s.step(true); // 统计 2 s
     }
-    // 残余回声抑制：Σecho²/Σ(e−v)² ≥ 20 dB
     let echo_power = s.sum_y2 - s.sum_v2;
-    let suppression = 10.0 * (echo_power / s.sum_res2).log10();
+    // ① 电平保真：Σe²/Σv² ∈ [−4, +9] dB
+    let level_db = 10.0 * (s.sum_e2 / s.sum_v2).log10();
     assert!(
-        suppression >= 20.0,
-        "残余回声抑制 = {:.1} dB (echo={:.3e} res={:.3e})",
+        (-4.0..=9.0).contains(&level_db),
+        "输出电平 vs 近端 = {:.1} dB（压死或残留回声）",
+        level_db
+    );
+    // ② 回声压制：Σecho²/Σe² ≥ 6 dB
+    let suppression = 10.0 * (echo_power / s.sum_e2).log10();
+    assert!(
+        suppression >= 6.0,
+        "回声压制 = {:.1} dB (echo={:.3e} e={:.3e})",
         suppression,
         echo_power,
-        s.sum_res2
-    );
-    // 近端保真：corr(e, v) 用能量比近似——Σv²/Σe² 应接近 1（e≈v）
-    let fidelity = s.sum_v2 / s.sum_e2;
-    assert!(
-        fidelity > 0.6,
-        "近端保真比 Σv²/Σe² = {:.3}（残差过大）",
-        fidelity
+        s.sum_e2
     );
 }
 

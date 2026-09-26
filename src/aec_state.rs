@@ -217,6 +217,8 @@ pub struct AecState {
     initial_state: InitialState,
     filter_quality_state: FilteringQualityAnalyzer,
     saturated_capture: bool,
+    /// 回声是否视为饱和（SaturationDetector 简化：线性可用时 max|s|>20000）。
+    saturated_echo: bool,
     /// 上块活跃 render（供指标）。
     active_render: bool,
 }
@@ -231,6 +233,7 @@ impl AecState {
             initial_state: InitialState::new(),
             filter_quality_state: FilteringQualityAnalyzer::new(),
             saturated_capture: false,
+            saturated_echo: false,
             active_render: false,
         }
     }
@@ -241,6 +244,12 @@ impl AecState {
 
     pub fn saturated_capture(&self) -> bool {
         self.saturated_capture
+    }
+
+    /// 回声是否饱和（`SaturatedEcho`，简化：仅线性可用分支的 20000 阈值；
+    /// 线性不可用分支需回声路径增益推算，本实现沿用同一阈值语义）。
+    pub fn saturated_echo(&self) -> bool {
+        self.saturated_echo
     }
 
     /// 线性估计是否可用（`UsableLinearEstimate`；本版本与
@@ -298,6 +307,13 @@ impl AecState {
         // 1. 收敛/发散
         self.subtractor_output_analyzer.update(subtractor_output);
         let any_filter_converged = self.subtractor_output_analyzer.converged_filters();
+
+        // 饱和回声判定（aec_state.cc:446-478 的线性分支；非线性分支用
+        // echo_path_gain 推算，本移植取等效阈值语义）。
+        const SATURATION_THRESHOLD: f32 = 20000.0;
+        self.saturated_echo = self.saturated_capture
+            && (subtractor_output.s_refined_max_abs > SATURATION_THRESHOLD
+                || subtractor_output.s_coarse_max_abs > SATURATION_THRESHOLD);
 
         // 2. 滤波器分析（峰位/一致性/增益）
         self.filter_analyzer.update(filter_impulse_responses, render_buffer);

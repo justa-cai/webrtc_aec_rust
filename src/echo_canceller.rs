@@ -28,6 +28,8 @@ pub struct FrameMetrics {
     pub usable_linear_estimate: bool,
     /// 初始状态（2.5 s）是否仍在。
     pub initial_state_active: bool,
+    /// 近端主导检测状态（NLP 层）。
+    pub nearend_state: bool,
 }
 
 /// 16 kHz 单声道线性 AEC（AEC3 线性部分全保真移植）。
@@ -123,6 +125,7 @@ impl EchoCanceller {
             capture_saturation: saturated,
             ..Default::default()
         };
+        let mut last_nearend_state = false;
 
         while self.pending.len() >= BLOCK_SIZE {
             let mut block: [f32; BLOCK_SIZE] = self.pending[..BLOCK_SIZE].try_into().unwrap();
@@ -149,6 +152,7 @@ impl EchoCanceller {
                 metrics.delay_change = true;
             }
             self.pending.drain(..BLOCK_SIZE);
+            last_nearend_state = result.nearend_state;
             self.ready.extend_from_slice(&block);
             if let Some(lb) = linear_block {
                 self.linear_ready.extend_from_slice(&lb);
@@ -161,6 +165,7 @@ impl EchoCanceller {
             .echo_remover()
             .aec_state()
             .usable_linear_estimate();
+        metrics.nearend_state = last_nearend_state;
         metrics.initial_state_active = self
             .block_processor
             .echo_remover()

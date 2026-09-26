@@ -8,6 +8,12 @@
 //! SuppressionFilter、ResidualEchoEstimator、ERLE/ERLE 指标。
 
 use crate::aec_state::AecState;
+use crate::comfort_noise_generator::ComfortNoiseGenerator;
+use crate::constants::SuppressorConfig;
+use crate::erle_estimator::ErleEstimator;
+use crate::residual_echo_estimator::{EstimateContext, ResidualEchoEstimator};
+use crate::suppression_filter::SuppressionFilter;
+use crate::suppression_gain::SuppressionGain;
 use crate::constants::{
     BLOCK_SIZE, FFT_LENGTH_BY_2_PLUS_1, SIGNAL_TRANSITION_SIZE, USE_REFINED_COARSE_RATIO,
     USE_REFINED_S2_THRESHOLD, USE_REFINED_Y2_THRESHOLD,
@@ -65,6 +71,8 @@ pub struct BlockResult {
     pub use_refined: bool,
     /// 延迟变化事件。
     pub delay_change: bool,
+    /// 本块近端主导检测状态（GetGain 之后）。
+    pub nearend_state: bool,
 }
 
 impl Default for BlockResult {
@@ -76,6 +84,7 @@ impl Default for BlockResult {
             s2_linear: [0.0; FFT_LENGTH_BY_2_PLUS_1],
             use_refined: true,
             delay_change: false,
+            nearend_state: false,
         }
     }
 }
@@ -94,6 +103,21 @@ pub struct EchoRemover {
     y_fft: FftData,
     e_fft: FftData,
     output: SubtractorOutput,
+    // —— 非线性层 ——
+    cng: ComfortNoiseGenerator,
+    residual_echo_estimator: ResidualEchoEstimator,
+    suppression_gain: SuppressionGain,
+    suppression_filter: SuppressionFilter,
+    erle_estimator: ErleEstimator,
+    /// ML 激活时使用的替换 Suppressor 配置（构造时由 adjust_config 生成）。
+    ml_ree_suppressor_config: Option<SuppressorConfig>,
+    ml_ree_was_active: bool,
+    // 复用缓冲
+    r2: [f32; FFT_LENGTH_BY_2_PLUS_1],
+    r2_unbounded: [f32; FFT_LENGTH_BY_2_PLUS_1],
+    comfort_noise: FftData,
+    high_band_comfort_noise: FftData,
+    g: [f32; FFT_LENGTH_BY_2_PLUS_1],
 }
 
 impl Default for EchoRemover {
@@ -116,6 +140,18 @@ impl EchoRemover {
             y_fft: FftData::default(),
             e_fft: FftData::default(),
             output: SubtractorOutput::new(),
+            cng: ComfortNoiseGenerator::new(),
+            residual_echo_estimator: ResidualEchoEstimator::new(),
+            suppression_gain: SuppressionGain::new(),
+            suppression_filter: SuppressionFilter::new(),
+            erle_estimator: ErleEstimator::new(),
+            ml_ree_suppressor_config: None,
+            ml_ree_was_active: false,
+            r2: [0.0; FFT_LENGTH_BY_2_PLUS_1],
+            r2_unbounded: [0.0; FFT_LENGTH_BY_2_PLUS_1],
+            comfort_noise: FftData::default(),
+            high_band_comfort_noise: FftData::default(),
+            g: [1.0; FFT_LENGTH_BY_2_PLUS_1],
         }
     }
 
@@ -152,6 +188,9 @@ impl EchoRemover {
             self.aec_state.handle_echo_path_change(echo_path_variability);
             result.delay_change =
                 echo_path_variability.delay_change != DelayAdjustment::None;
+            if result.delay_change {
+                self.suppression_gain.set_initial_state(true);
+            }
         }
 
         // render 信号分析
@@ -163,6 +202,7 @@ impl EchoRemover {
         // 初始状态切换：滤波器加长、增益配置转稳态
         if self.aec_state.transition_triggered() {
             self.subtractor.exit_initial_state();
+            self.suppression_gain.set_initial_state(false);
         }
 
         // 线性回声消除
@@ -174,8 +214,13 @@ impl EchoRemover {
             &mut self.output,
         );
 
-        // 选择输出（config 默认启用 coarse 输出使用）
-        let use_refined = use_refined_output(&self.output);
+        // ML 激活时禁用 coarse 输出选择（echo_remover.cc:430-441）
+        let ml_ree_is_active = self.residual_echo_estimator.ml_ree_is_active();
+        let use_refined = if ml_ree_is_active {
+            true
+        } else {
+            use_refined_output(&self.output)
+        };
         {
             let from = if self.refined_filter_output_last_selected {
                 &self.output.e_refined
@@ -213,7 +258,7 @@ impl EchoRemover {
             lo.copy_from_slice(&e_snapshot);
         }
 
-        // AEC 状态更新
+        // AEC 状态更新（在 E2 clamp 之前，与源码一致）
         let freq_responses = self.subtractor.filter_frequency_responses().clone();
         let impulse = self.subtractor.filter_impulse_responses().clone();
         self.aec_state.update(
@@ -224,7 +269,112 @@ impl EchoRemover {
             &result.y2,
             &self.output,
         );
-        let _ = freq_responses;
+
+        // ——————— 非线性层（echo_remover.cc:482-530） ———————
+        let usable = self.aec_state.usable_linear_estimate();
+        // ERLE 更新（clamp 前，双讲冻结；上一块的近端检测态）
+        let dominant_nearend_prev = self.suppression_gain.is_dominant_nearend();
+        self.erle_estimator.update(
+            self.aec_state.converged_filters(),
+            dominant_nearend_prev,
+            &result.y2,
+            &self.output.e2_refined_spectrum,
+        );
+
+        // 舒适噪声（:482）—— nearend 谱用未 clamp 的 E2/Y2。
+        let nearend_spectrum_preclamp: [f32; FFT_LENGTH_BY_2_PLUS_1] = if usable {
+            result.e2
+        } else {
+            result.y2
+        };
+        self.cng.compute(
+            self.aec_state.saturated_capture(),
+            &nearend_spectrum_preclamp,
+            &mut self.comfort_noise,
+            &mut self.high_band_comfort_noise,
+        );
+
+        // 残余回声估计（:490）。y_old/e_old 此时已是当前块（与源码一致）。
+        let y_current = self.y_old;
+        let e_current = self.e_old;
+        let ctx = EstimateContext {
+            usable_linear_estimate: usable,
+            saturated_echo: self.aec_state.saturated_echo(),
+            min_direct_path_filter_delay_blocks: self
+                .aec_state
+                .min_direct_path_filter_delay(),
+            filter_length_blocks: self.subtractor.size_partitions(),
+            transparent_mode_active: false, // 透明模式恒不激活（README 偏差清单）
+            erle: self.erle_estimator.erle(),
+            erle_unbounded: self.erle_estimator.erle_unbounded(),
+            external_delay_blocks: external_delay,
+        };
+        let s2_linear_copy = result.s2_linear;
+        let y2_copy = result.y2;
+        let mut e2_copy = result.e2;
+        self.residual_echo_estimator.estimate(
+            &ctx,
+            render_buffer,
+            &y_current,
+            &e_current,
+            &s2_linear_copy,
+            &y2_copy,
+            &e2_copy,
+            &freq_responses,
+            dominant_nearend_prev,
+            &mut self.r2,
+            &mut self.r2_unbounded,
+        );
+
+        // E2 就地 clamp 到 Y2 以下（:495，仅 UsableLinearEstimate）。
+        if usable {
+            for k in 0..FFT_LENGTH_BY_2_PLUS_1 {
+                e2_copy[k] = e2_copy[k].min(y2_copy[k]);
+            }
+        }
+        let nearend_spectrum: [f32; FFT_LENGTH_BY_2_PLUS_1] = if usable {
+            e2_copy
+        } else {
+            y2_copy
+        };
+
+        // 抑制增益（:524）。ML 激活时使用替换配置。
+        let active_suppressor_config: SuppressorConfig = if ml_ree_is_active {
+            self.ml_ree_suppressor_config.unwrap_or_default()
+        } else {
+            SuppressorConfig::default()
+        };
+        // ML 激活沿会触发上游 UpdateStateDependingOnConfig；本实现无 ML 注入
+        // 时恒为 false，配置不变。
+        let config_changed = ml_ree_is_active != self.ml_ree_was_active;
+        let _ = config_changed;
+        self.ml_ree_was_active = ml_ree_is_active;
+        let render_block = *render_buffer.get_block(0);
+        let _high_bands_gain = self.suppression_gain.get_gain(
+            &active_suppressor_config,
+            &nearend_spectrum,
+            &self.r2,
+            &self.r2_unbounded,
+            self.cng.noise_spectrum(),
+            self.aec_state.saturated_echo(),
+            &render_block,
+            echo_path_variability.clock_drift,
+            &mut self.g,
+        );
+        result.nearend_state = self.suppression_gain.is_dominant_nearend();
+        // 16 kHz 单带：高带增益恒 1.0（多带支持见 README 偏差清单）。
+
+        // 增益应用（:529）：UseLinearFilterOutput ? E : Y 作为低带输入。
+        // capture 此时为线性输出 e —— 原地覆写为最终 NLP 输出。
+        let spectrum_in = if usable {
+            self.e_fft
+        } else {
+            self.y_fft
+        };
+        let mut e_out = *capture;
+        self.suppression_filter
+            .apply_gain(&self.comfort_noise, &self.g, &spectrum_in, &mut e_out);
+        capture.copy_from_slice(&e_out);
 
         result
     }

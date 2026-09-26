@@ -181,6 +181,11 @@ impl Subtractor {
         }
     }
 
+    /// 精滤波器当前分区数（供残余回声估计的混响起始位置）。
+    pub fn size_partitions(&self) -> usize {
+        self.refined_filter.size_partitions()
+    }
+
     /// 精滤波器各分区频率响应（供 AecState/FilterAnalyzer）。
     pub fn filter_frequency_responses(&self) -> &Vec<[f32; FFT_LENGTH_BY_2_PLUS_1]> {
         &self.refined_frequency_responses

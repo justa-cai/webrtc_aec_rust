@@ -226,3 +226,214 @@ pub const MISADJUSTMENT_ADJUST_THRESHOLD: f32 = 10.0;
 pub const POOR_COARSE_FILTER_COUNTER_LIMIT: usize = 5;
 /// e_refined 输出钳位（subtractor.cc 末尾 SafeClamp）。
 pub const OUTPUT_CLAMP_LIMIT: f32 = 32768.0;
+
+// ===========================================================================
+// 非线性层（NLP）常量与配置 —— 对照 echo_canceller3_config.h 与各 .cc 文件
+// ===========================================================================
+
+/// 掩蔽阈值组（`MaskingThresholds`，echo_canceller3_config.h:206-212）。
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct MaskingThresholds {
+    pub enr_transparent: f32,
+    pub enr_suppress: f32,
+    pub emr_transparent: f32,
+}
+
+/// 增益调参（`Suppressor::Tuning`，echo_canceller3_config.h:213-221）。
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SuppressorTuning {
+    pub lf: MaskingThresholds,
+    pub hf: MaskingThresholds,
+    /// 增益上升限（功率域倍率/块）。
+    pub max_inc_factor: f32,
+    /// 低频增益下降限（功率域倍率/块）。
+    pub max_dec_factor_lf: f32,
+}
+
+/// 近端主导检测配置（`dominant_nearend_detection`，echo_canceller3_config.h:228-237）。
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DominantNearendDetectionConfig {
+    pub enr_threshold: f32,
+    pub enr_exit_threshold: f32,
+    pub snr_threshold: f32,
+    pub hold_duration: i32,
+    pub trigger_threshold: i32,
+    pub use_during_initial_phase: bool,
+    pub use_unbounded_echo_spectrum: bool,
+}
+
+/// 高带抑制配置（`high_bands_suppression`）。
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct HighBandsSuppressionConfig {
+    pub enr_threshold: f32,
+    pub max_gain_during_echo: f32,
+    pub anti_howling_activation_threshold: f32,
+    pub anti_howling_gain: f32,
+}
+
+/// 高频限制配置（`high_frequency_suppression`）。
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct HighFrequencySuppressionConfig {
+    pub limiting_gain_band: usize,
+    pub bands_in_limiting_gain: usize,
+}
+
+/// 完整抑制器配置（`EchoCanceller3Config::Suppressor`）。
+/// ML 注入点 `adjust_config` 以此为参数。
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SuppressorConfig {
+    pub nearend_average_blocks: usize,
+    pub normal_tuning: SuppressorTuning,
+    pub nearend_tuning: SuppressorTuning,
+    pub lf_smoothing_during_initial_phase: bool,
+    pub last_permanent_lf_smoothing_band: usize,
+    pub last_lf_smoothing_band: usize,
+    pub last_lf_band: usize,
+    pub first_hf_band: usize,
+    pub dominant_nearend_detection: DominantNearendDetectionConfig,
+    pub high_bands_suppression: HighBandsSuppressionConfig,
+    pub high_frequency_suppression: HighFrequencySuppressionConfig,
+    pub floor_first_increase: f32,
+    pub conservative_hf_suppression: bool,
+}
+
+impl Default for SuppressorConfig {
+    fn default() -> Self {
+        Self {
+            nearend_average_blocks: 4,
+            normal_tuning: SuppressorTuning {
+                lf: MaskingThresholds {
+                    enr_transparent: 0.3,
+                    enr_suppress: 0.4,
+                    emr_transparent: 0.3,
+                },
+                hf: MaskingThresholds {
+                    enr_transparent: 0.07,
+                    enr_suppress: 0.1,
+                    emr_transparent: 0.3,
+                },
+                max_inc_factor: 2.0,
+                max_dec_factor_lf: 0.25,
+            },
+            nearend_tuning: SuppressorTuning {
+                lf: MaskingThresholds {
+                    enr_transparent: 1.09,
+                    enr_suppress: 1.1,
+                    emr_transparent: 0.3,
+                },
+                hf: MaskingThresholds {
+                    enr_transparent: 0.1,
+                    enr_suppress: 0.3,
+                    emr_transparent: 0.3,
+                },
+                max_inc_factor: 2.0,
+                max_dec_factor_lf: 0.25,
+            },
+            lf_smoothing_during_initial_phase: true,
+            last_permanent_lf_smoothing_band: 0,
+            last_lf_smoothing_band: 5,
+            last_lf_band: 5,
+            first_hf_band: 8,
+            dominant_nearend_detection: DominantNearendDetectionConfig {
+                enr_threshold: 0.25,
+                enr_exit_threshold: 10.0,
+                snr_threshold: 30.0,
+                hold_duration: 50,
+                trigger_threshold: 12,
+                use_during_initial_phase: true,
+                use_unbounded_echo_spectrum: true,
+            },
+            high_bands_suppression: HighBandsSuppressionConfig {
+                enr_threshold: 1.0,
+                max_gain_during_echo: 1.0,
+                anti_howling_activation_threshold: 400.0,
+                anti_howling_gain: 1.0,
+            },
+            high_frequency_suppression: HighFrequencySuppressionConfig {
+                limiting_gain_band: 16,
+                bands_in_limiting_gain: 1,
+            },
+            floor_first_increase: 1e-5,
+            conservative_hf_suppression: false,
+        }
+    }
+}
+
+// —— echo_model（residual_echo_estimator.cc）——
+
+/// 渲染噪声门功率（`noise_gate_power`）。
+pub const ECHO_MODEL_NOISE_GATE_POWER: f32 = 27509.42;
+/// 渲染噪声门斜率（`noise_gate_slope`）。
+pub const ECHO_MODEL_NOISE_GATE_SLOPE: f32 = 0.3;
+/// 平稳噪声门斜率（`stationary_gate_slope`）。
+pub const ECHO_MODEL_STATIONARY_GATE_SLOPE: f32 = 10.0;
+/// 渲染噪声底下限（`min_noise_floor_power`，X2_noise_floor 初值）。
+pub const ECHO_MODEL_MIN_NOISE_FLOOR_POWER: f32 = 1638400.0;
+/// X2_noise_floor 保持块数（`noise_floor_hold`）。
+pub const ECHO_MODEL_NOISE_FLOOR_HOLD: usize = 50;
+/// 回声生成功率窗口（render_pre/post_window_size，块）。
+pub const ECHO_MODEL_RENDER_PRE_WINDOW_SIZE: usize = 1;
+pub const ECHO_MODEL_RENDER_POST_WINDOW_SIZE: usize = 1;
+/// 非线性模式是否建模混响（`model_reverb_in_nonlinear_mode`）。
+pub const ECHO_MODEL_MODEL_REVERB_IN_NONLINEAR_MODE: bool = true;
+/// X2_noise_floor 上漂因子（residual_echo_estimator.cc:355）。
+pub const ECHO_MODEL_NOISE_FLOOR_LEAK: f32 = 1.1;
+
+// —— ep_strength ——
+/// 默认回声路径增益（`ep_strength.default_gain`，幅度域）。
+pub const EP_STRENGTH_DEFAULT_GAIN: f32 = 1.0;
+/// 默认混响衰减（`ep_strength.default_len`，≥0 → 固定不自适应）。
+pub const EP_STRENGTH_DEFAULT_LEN: f32 = 0.83;
+/// 透明模式回声路径增益（`kDefaultTransparentModeGain`，幅度域）。
+pub const TRANSPARENT_MODE_GAIN: f32 = 0.01;
+
+// —— ERLE（简版估计器）——
+/// ERLE 下限。
+pub const ERLE_MIN: f32 = 1.0;
+/// ERLE 上限：低半带（bins 0..32）。
+pub const ERLE_MAX_L: f32 = 4.0;
+/// ERLE 上限：高半带（bins 32..65）。
+pub const ERLE_MAX_H: f32 = 1.5;
+/// 无界 ERLE 上限（`kUnboundedErleMax`）。
+pub const ERLE_UNBOUNDED_MAX: f32 = 1e5;
+
+// —— echo_audibility（suppression_gain.cc GetMinGain/WeightEchoForAudibility）——
+/// 过减目标功率：低噪声 render。
+pub const ECHO_AUDIBILITY_LOW_RENDER_LIMIT: f32 = 4.0 * 64.0; // 256
+/// 过减目标功率：正常 render。
+pub const ECHO_AUDIBILITY_NORMAL_RENDER_LIMIT: f32 = 64.0;
+/// 可闻性地板功率（`floor_power` = 2·64）。
+pub const ECHO_AUDIBILITY_FLOOR_POWER: f32 = 2.0 * 64.0; // 128
+/// 可闻性阈值倍率（lf/mf/hf 同值 10）。
+pub const ECHO_AUDIBILITY_THRESHOLD: f32 = 10.0;
+
+// —— 舒适噪声（comfort_noise_generator.cc）——
+/// 噪声底 dBFS（`comfort_noise.noise_floor_dbfs`）。
+pub const COMFORT_NOISE_FLOOR_DBFS: f32 = -96.03406;
+/// N2 初值。
+pub const CNG_N2_INITIAL: f32 = 1.0e6;
+/// Y2 平滑系数。
+pub const CNG_Y2_SMOOTHING: f32 = 0.1;
+/// N2 min 更新系数（0.9 新 + 0.1 旧）。
+pub const CNG_N2_MIN_UPDATE: f32 = 0.9;
+/// N2 上漂因子。
+pub const CNG_N2_UPWARD_DRIFT: f32 = 1.0002;
+/// N2 更新启动门槛（块）。
+pub const CNG_N2_COUNTER_THRESHOLD: i32 = 50;
+/// initial 期时长（块）。
+pub const CNG_N2_INITIAL_BLOCKS: i32 = 1000;
+/// initial 期跟踪系数。
+pub const CNG_N2_INITIAL_ALPHA: f32 = 0.001;
+/// LCG 种子与乘子（GenerateRandomSinTableIndices）。
+pub const CNG_SEED: u32 = 42;
+pub const CNG_LCG_MULTIPLIER: u32 = 69069;
+
+// —— 抑制器（suppression_gain.cc / suppression_filter.cc）——
+/// LowNoiseRender 判定阈值（50²·64）。
+pub const LOW_NOISE_RENDER_THRESHOLD: f32 = 50.0 * 50.0 * 64.0; // 160000
+/// LowNoiseRender 峰值/均值比阈值。
+pub const LOW_NOISE_RENDER_PEAK_FACTOR: f32 = 3.0;
+/// 输出钳位。
+pub const SUPPRESSION_CLAMP: f32 = 32768.0;
+/// 高带噪声缩放系数。
+pub const HIGH_BAND_NOISE_SCALING: f32 = 0.4;
