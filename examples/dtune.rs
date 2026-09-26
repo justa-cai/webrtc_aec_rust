@@ -6,6 +6,7 @@
 
 use webrtc_linear_aec_rust::constants::{SuppressorConfig, FRAME_SIZE};
 use webrtc_linear_aec_rust::EchoCanceller;
+use webrtc_linear_aec_rust::simple_ns::{NsLevel, SimpleNs};
 
 struct Rng(u64);
 impl Rng {
@@ -25,10 +26,13 @@ fn read_wav(path: &str) -> Vec<f32> {
 }
 
 /// 跑一组配置，返回 (输出, 逐秒电平比, 全程回声残留互相关)
-fn run(far: &[f32], near: &[f32], cfg: SuppressorConfig) -> (Vec<f32>, Vec<f64>, f64) {
+fn run(far: &[f32], near: &[f32], cfg: SuppressorConfig, ns: Option<NsLevel>) -> (Vec<f32>, Vec<f64>, f64) {
     let mut aec = EchoCanceller::with_suppressor_config(cfg);
+    let mut ns_proc = SimpleNs::new(ns.unwrap_or(NsLevel::Moderate));
     let n = far.len().min(near.len());
     let mut out = Vec::with_capacity(n);
+    // NS 的 WOLA 滤波器组固有 96 样本延迟：流式去延迟
+    let mut delay_buf: Vec<f32> = if ns.is_some() { vec![0.0; 96] } else { Vec::new() };
     let frames = n / FRAME_SIZE;
     for f in 0..frames {
         let mut rf = [0f32; FRAME_SIZE];
@@ -37,7 +41,14 @@ fn run(far: &[f32], near: &[f32], cfg: SuppressorConfig) -> (Vec<f32>, Vec<f64>,
         cf.copy_from_slice(&near[f * FRAME_SIZE..(f + 1) * FRAME_SIZE]);
         aec.push_render_frame(&rf);
         aec.process_capture_frame(&mut cf);
-        out.extend_from_slice(&cf);
+        if let Some(level) = ns {
+            ns_proc.process(&mut cf);
+            delay_buf.extend_from_slice(&cf);
+            let drained: Vec<f32> = delay_buf.drain(..FRAME_SIZE).collect();
+            out.extend_from_slice(&drained);
+        } else {
+            out.extend_from_slice(&cf);
+        }
     }
     // 逐秒电平比
     let mut levels = Vec::new();
@@ -97,6 +108,28 @@ fn main() {
     g5.nearend_masker = true;
     groups.push(("L3 近端掩蔽", g5));
 
+    let mut gns = SuppressorConfig::default();
+    gns.nearend_masker = true;
+    groups.push(("L3+NS12dB", gns));
+
+    let mut gns2 = SuppressorConfig::default();
+    gns2.nearend_masker = true;
+    groups.push(("L3+NS18dB High", gns2));
+
+    let mut gdeep = SuppressorConfig::default();
+    gdeep.nearend_masker = true;
+    // E2: 非双讲段加深（render_limit 64→16）
+    // 注：echo_audibility 未进 SuppressorConfig，此处经由保守 tuning 近似
+    gdeep.normal_tuning.hf.enr_transparent = 0.05;
+    gdeep.normal_tuning.hf.enr_suppress = 0.07;
+    groups.push(("L3+加深", gdeep));
+
+    let mut gall = SuppressorConfig::default();
+    gall.nearend_masker = true;
+    gall.normal_tuning.hf.enr_transparent = 0.05;
+    gall.normal_tuning.hf.enr_suppress = 0.07;
+    groups.push(("L3+NS+加深", gall));
+
     let mut ga = SuppressorConfig::default();
     ga.nearend_masker = true;
     ga.nearend_masker_alpha = 0.6;
@@ -126,7 +159,9 @@ fn main() {
     println!("{}", "-".repeat(60));
     let mut outputs = Vec::new();
     for (name, cfg) in groups {
-        let (out, levels, leak) = run(&far, &near, cfg);
+        let use_ns = name.contains("NS");
+        let lvl = if name.contains("High") { NsLevel::High } else { NsLevel::Moderate };
+        let (out, levels, leak) = run(&far, &near, cfg, if use_ns { Some(lvl) } else { None });
         println!(
             "{:<16} {:>7.1} {:>7.1} {:>7.1} {:>7.1} {:>8.3}",
             name,
@@ -158,7 +193,7 @@ fn main() {
 
     // 多通道对比
     use std::io::Write;
-    let picks = ["baseline(默认)", "L3 近端掩蔽", "L3a0.6"];
+    let picks = ["baseline(默认)", "L3 近端掩蔽", "L3+NS12dB", "L3+NS18dB High"];
     let n = near.len();
     let mut writer = hound::WavWriter::create("tmp/dtune_compare.wav", hound::WavSpec {
         channels: (1 + picks.len()) as u16,
@@ -174,6 +209,6 @@ fn main() {
         }
     }
     writer.finalize().unwrap();
-    println!("多通道对比: tmp/dtune_compare.wav [1]=mic [2]=baseline [3]=L3掩蔽α=1 [4]=L3掩蔽α=0.6");
+    println!("多通道对比: tmp/dtune_compare.wav [1]=mic [2]=baseline [3]=L3掩蔽 [4]=L3+NS12dB [5]=L3+NS18dB");
     
 }

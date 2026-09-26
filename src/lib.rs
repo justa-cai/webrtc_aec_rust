@@ -39,6 +39,7 @@ pub mod render_signal_analyzer;
 pub mod ring;
 pub mod subtractor;
 pub mod subtractor_output;
+pub mod simple_ns;
 pub mod suppression_filter;
 pub mod suppression_gain;
 
