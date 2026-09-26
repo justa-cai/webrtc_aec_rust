@@ -59,6 +59,12 @@ function buildUI() {
     wrap.appendChild(el);
 
     el.querySelector('[data-act="mute"]').addEventListener("click", () => {
+      // 独奏激活时：点被压制轨道的静音按钮 = 解除独奏（恢复该轨可听）
+      if (state.solo && state.solo !== t.id) {
+        state.solo = null;
+        updateMix();
+        return;
+      }
       state.muted.has(t.id) ? state.muted.delete(t.id) : state.muted.add(t.id);
       updateMix();
     });
@@ -87,10 +93,10 @@ function updateMix() {
     // 增益（暂停时无节点，播放后 startAll 会按同一判定应用）
     const n = state.nodes.get(t.id);
     if (n) n.gain.gain.setTargetAtTime(isAudible(t.id) ? 1 : 0, ctx.currentTime, 0.01);
-    // 按钮样式：独奏激活时静音按钮不显示手动状态（避免误导）
+    // 按钮样式：不可听的轨道（手动静音 或 被独奏压掉）都显示静音激活状态
     const muteBtn = t.row.querySelector('[data-act="mute"]');
     const soloBtn = t.row.querySelector('[data-act="solo"]');
-    muteBtn.classList.toggle("active-mute", !state.solo && state.muted.has(t.id));
+    muteBtn.classList.toggle("active-mute", !isAudible(t.id));
     soloBtn.classList.toggle("active-solo", state.solo === t.id);
     // 整轨视觉：不可听的轨道变暗
     t.row.classList.toggle("is-muted", !isAudible(t.id));
