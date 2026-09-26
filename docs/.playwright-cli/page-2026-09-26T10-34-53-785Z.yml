@@ -1,0 +1,58 @@
+- generic [ref=f1e1]:
+  - banner [ref=f1e2]:
+    - heading "WebRTC AEC3（Rust 移植）· 处理过程演示" [level=1] [ref=f1e3]
+    - paragraph [ref=f1e4]:
+      - text: 同一段双讲素材，经过 AEC 管线各阶段的音频对照 ·
+      - link "GitHub 仓库" [ref=f1e5] [cursor=pointer]:
+        - /url: https://github.com/justa-cai/webrtc_aec_rust
+  - main [ref=f1e6]:
+    - generic [ref=f1e7]:
+      - generic [ref=f1e8]:
+        - generic [ref=f1e9]: ① 远端参考
+        - generic [ref=f1e10]: 扬声器播放的信号，AEC 的已知输入
+      - generic [ref=f1e11]: →
+      - generic [ref=f1e12]:
+        - generic [ref=f1e13]: ② 近端麦克风
+        - generic [ref=f1e14]: 近端语音 + 扬声器回声 + 房间混响
+      - generic [ref=f1e15]: →
+      - generic [ref=f1e16]:
+        - generic [ref=f1e17]: ③ 时延对齐 + 线性 AEC
+        - generic [ref=f1e18]: 匹配滤波器组估计时延 → 分区频域自适应滤波（NLMS）
+      - generic [ref=f1e19]: →
+      - generic [ref=f1e20]:
+        - generic [ref=f1e21]: ④ 非线性抑制（NLP）
+        - generic [ref=f1e22]: 残余回声估计 + 掩蔽增益 + 舒适噪声 + 双讲近端保护
+    - generic [ref=f1e23]:
+      - generic [ref=f1e24]:
+        - button "播放" [ref=f1e36] [cursor=pointer]
+        - generic [ref=f1e26]: 00:00 / 00:09
+      - generic [ref=f1e37]:
+        - generic [ref=f1e39]:
+          - generic [ref=f1e40]: 远端参考
+          - generic [ref=f1e41]:
+            - button "静音" [ref=f1e42] [cursor=pointer]
+            - button "独奏" [ref=f1e43] [cursor=pointer]
+        - generic [ref=f1e47]:
+          - generic [ref=f1e48]: 近端麦克风
+          - generic [ref=f1e49]:
+            - button "静音" [ref=f1e50] [cursor=pointer]
+            - button "独奏" [ref=f1e51] [cursor=pointer]
+        - generic [ref=f1e55]:
+          - generic [ref=f1e56]: 线性输出
+          - generic [ref=f1e57]:
+            - button "静音" [ref=f1e58] [cursor=pointer]
+            - button "独奏" [active] [ref=f1e59] [cursor=pointer]
+        - generic [ref=f1e63]:
+          - generic [ref=f1e64]: 非线性输出
+          - generic [ref=f1e65]:
+            - button "静音" [ref=f1e66] [cursor=pointer]
+            - button "独奏" [ref=f1e67] [cursor=pointer]
+    - generic [ref=f1e27]:
+      - heading "听感指南" [level=2] [ref=f1e28]
+      - list [ref=f1e29]:
+        - listitem [ref=f1e30]: 近端麦克风：能同时听到近端说话人与远端语音的回声（约 168ms 延迟）
+        - listitem [ref=f1e31]: 线性输出：自适应滤波器卷积对消后的残差——回声被部分消除， 但双讲期间滤波器为保护近端而放缓更新，残留明显
+        - listitem [ref=f1e32]: 非线性输出：在线性输出基础上，抑制器按"回声/近端比 + 掩蔽阈"逐频点压制残余， 并注入舒适噪声填补频谱空隙；含双讲近端掩蔽优化
+        - listitem [ref=f1e33]: 使用每轨的 静音/独奏 对比聆听，感受各阶段差异
+  - contentinfo [ref=f1e34]:
+    - paragraph [ref=f1e35]: 音频：公开双讲测试样本（16 kHz / 10 s）· 处理：webrtc_aec_rust（线性+NLP 全家桶配置）

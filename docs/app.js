@@ -16,9 +16,15 @@ const state = {
   offset: 0,            // 当前播放位置（秒）
   startedAt: 0,         // ctx.currentTime 起点
   duration: 0,
-  muted: new Set(),
-  solo: null,
+  muted: new Set(),     // 手动静音的轨道
+  solo: null,           // 当前独奏轨道（null = 无）
 };
+
+// 单一可听性判定：独奏优先，其次看手动静音
+function isAudible(id) {
+  if (state.solo) return state.solo === id;
+  return !state.muted.has(id);
+}
 
 // ---------- 加载 ----------
 async function load() {
@@ -40,6 +46,7 @@ function buildUI() {
   TRACKS.forEach((t) => {
     const el = document.createElement("div");
     el.className = "track";
+    el.id = `${t.id}-row`;
     el.innerHTML = `
       <div class="track-controls">
         <div class="track-name" style="color:${t.color}">${t.name}</div>
@@ -51,22 +58,14 @@ function buildUI() {
       <div class="track-wave"><canvas></canvas></div>`;
     wrap.appendChild(el);
 
-    const muteBtn = el.querySelector('[data-act="mute"]');
-    const soloBtn = el.querySelector('[data-act="solo"]');
-    muteBtn.addEventListener("click", () => {
+    el.querySelector('[data-act="mute"]').addEventListener("click", () => {
       state.muted.has(t.id) ? state.muted.delete(t.id) : state.muted.add(t.id);
-      muteBtn.classList.toggle("active-mute", state.muted.has(t.id));
-      applyGains();
+      updateMix();
     });
-    soloBtn.addEventListener("click", () => {
+    el.querySelector('[data-act="solo"]').addEventListener("click", () => {
       state.solo = state.solo === t.id ? null : t.id;
-      TRACKS.forEach((o) => {
-        const b = wrap.querySelector(`#${o.id}-row .btn[data-act="solo"]`);
-      });
-      el.querySelectorAll(".btn")[1].classList.toggle("active-solo", state.solo === t.id);
-      applyGains();
+      updateMix();
     });
-    el.id = `${t.id}-row`;
 
     const cv = el.querySelector("canvas");
     cv.addEventListener("click", (e) => {
@@ -75,19 +74,26 @@ function buildUI() {
     });
     drawWave(cv, state.buffers.get(t.id), t.color, 0);
     t.canvas = cv;
+    t.row = el;
   });
   window.addEventListener("resize", () => {
     TRACKS.forEach((t) => drawWave(t.canvas, state.buffers.get(t.id), t.color, position()));
   });
 }
 
-// ---------- 增益（mute/solo）----------
-function applyGains() {
+// ---------- 混音状态统一刷新（增益 + 按钮样式 + 轨道视觉）----------
+function updateMix() {
   TRACKS.forEach((t) => {
+    // 增益（暂停时无节点，播放后 startAll 会按同一判定应用）
     const n = state.nodes.get(t.id);
-    if (!n) return;
-    const audible = state.solo ? state.solo === t.id : !state.muted.has(t.id);
-    n.gain.gain.setTargetAtTime(audible ? 1 : 0, ctx.currentTime, 0.01);
+    if (n) n.gain.gain.setTargetAtTime(isAudible(t.id) ? 1 : 0, ctx.currentTime, 0.01);
+    // 按钮样式：独奏激活时静音按钮不显示手动状态（避免误导）
+    const muteBtn = t.row.querySelector('[data-act="mute"]');
+    const soloBtn = t.row.querySelector('[data-act="solo"]');
+    muteBtn.classList.toggle("active-mute", !state.solo && state.muted.has(t.id));
+    soloBtn.classList.toggle("active-solo", state.solo === t.id);
+    // 整轨视觉：不可听的轨道变暗
+    t.row.classList.toggle("is-muted", !isAudible(t.id));
   });
 }
 
@@ -98,11 +104,11 @@ function startAll(offset) {
     const src = ctx.createBufferSource();
     src.buffer = state.buffers.get(t.id);
     const gain = ctx.createGain();
+    gain.gain.value = isAudible(t.id) ? 1 : 0; // 创建即应用当前混音状态
     src.connect(gain).connect(ctx.destination);
     src.start(when, offset);
     state.nodes.set(t.id, { src, gain });
   });
-  applyGains();
   state.startedAt = when;
   state.offset = offset;
 }
@@ -112,10 +118,12 @@ function stopAll() {
 }
 function position() {
   if (!state.playing) return state.offset;
-  return Math.min(state.duration, state.offset + (ctx.currentTime - state.startedAt));
+  // 播放刚启动的调度窗口内（startedAt 在未来）clamp 到 0，避免时间显示为负
+  return Math.max(0, Math.min(state.duration, state.offset + (ctx.currentTime - state.startedAt)));
 }
 function play() {
-  if (state.playing || position() >= state.duration - 0.01) { if (position() >= state.duration - 0.01) { state.offset = 0; } else { return; } }
+  if (state.playing) return;
+  if (state.offset >= state.duration - 0.01) state.offset = 0;
   ctx.resume();
   startAll(state.offset);
   state.playing = true;
@@ -189,9 +197,8 @@ document.getElementById("play-btn").addEventListener("click", () => state.playin
 document.addEventListener("keydown", (e) => {
   if (e.code === "Space") { e.preventDefault(); state.playing ? pause() : play(); }
 });
-window.addEventListener("resize", () => TRACKS.forEach((t) => t.canvas && drawWave(t.canvas, state.buffers.get(t.id), t.color, position())));
 
-load().then(() => requestAnimationFrame(frame)).catch((e) => {
+load().then(() => { updateMix(); requestAnimationFrame(frame); }).catch((e) => {
   document.getElementById("play-btn").textContent = "加载失败";
   console.error(e);
 });

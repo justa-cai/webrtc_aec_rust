@@ -1,0 +1,170 @@
+- generic [active] [ref=e1]:
+  - link "GitHub" [ref=e2] [cursor=pointer]:
+    - /url: https://github.com/justa-cai/ali_jaec
+  - banner [ref=e6]:
+    - generic [ref=e7]:
+      - paragraph [ref=e8]: 16 kHz · acoustic echo cancellation
+      - heading "ali_jaec" [level=1] [ref=e9]
+      - paragraph [ref=e10]:
+        - text: 给定麦克风信号与远端参考信号，估计并消除扬声器回声，输出近端语音。0.058 M 参数，10 ms 帧，两个网络分阶段训练。模型导出为 ONNX，
+        - strong [ref=e11]: 可以在浏览器里直接跑
+        - text: ——没有后端，第 02 节的结果就是本页用 ONNX Runtime Web 现算出来的。
+      - list [ref=e12]:
+        - listitem [ref=e13]:
+          - generic [ref=e14]: 参数量
+          - generic [ref=e15]: 0.058 M
+        - listitem [ref=e16]:
+          - generic [ref=e17]: 帧长
+          - generic [ref=e18]: 10 ms
+        - listitem [ref=e19]:
+          - generic [ref=e20]: 采样率
+          - generic [ref=e21]: 16 kHz
+        - listitem [ref=e22]:
+          - generic [ref=e23]: 算法延迟
+          - generic [ref=e24]: "0"
+  - main [ref=e25]:
+    - generic [ref=e26]:
+      - heading "01 示例音频" [level=2] [ref=e27]:
+        - generic [ref=e28]: "01"
+        - text: 示例音频
+      - paragraph [ref=e29]: 来自官方示例的 10 秒录音对。麦克风里同时有近端人声和远端回声；算法输出应当保留近端人声、去掉远端回声。下面四条依次是麦克风、远端参考、本模型输出，以及已发布参考实现在同一段音频上的输出 —— 最后一条是拿来对比的基线。
+      - generic [ref=e30]:
+        - figure "近端 mic 麦克风拾取 · 近端人声 + 回声" [ref=e31]:
+          - generic [ref=e32]:
+            - generic [ref=e33]: 近端 mic
+            - generic [ref=e34]: 麦克风拾取 · 近端人声 + 回声
+        - figure "远端 ref 扬声器播放 · 回声的来源" [ref=e37]:
+          - generic [ref=e38]:
+            - generic [ref=e39]: 远端 ref
+            - generic [ref=e40]: 扬声器播放 · 回声的来源
+        - figure "算法后 本模型输出 · 与 mic 时间对齐" [ref=e43]:
+          - generic [ref=e44]:
+            - generic [ref=e45]: 算法后
+            - generic [ref=e46]: 本模型输出 · 与 mic 时间对齐
+        - figure "JAEC 参考实现 已发布模型在同一段音频上的输出 · 已对齐到 mic" [ref=e49]:
+          - generic [ref=e50]:
+            - generic [ref=e51]: JAEC 参考实现
+            - generic [ref=e52]: 已发布模型在同一段音频上的输出 · 已对齐到 mic
+      - figure "同一段 10 秒音频的时频图：512 点 FFT、10 ms 一帧（和模型自己用的分析参数一致），纵轴 0–8 kHz 线性，四条共用一条时间轴，与上面的播放器对齐。颜色是能量，色标固定（−85 → +25 dB）且四条共用，所以深浅可以直接横向比。远端 ref 里那些空白竖条是远端静音，而同一时刻 mic 里仍然有东西 —— 那就是近端人声。两条输出的差别，就在「留住了多少近端、漏掉了多少回声」。播放任意一条，白线跟着走。" [ref=e55]:
+        - generic [ref=e56]:
+          - generic [ref=e57]:
+            - img "近端 mic 的时频图" [ref=e58]:
+              - generic: 近端 mic
+            - img "远端 ref 的时频图" [ref=e60]:
+              - generic: 远端 ref
+            - img "本模型输出的时频图" [ref=e62]:
+              - generic: 本模型
+            - img "JAEC 参考实现输出的时频图" [ref=e64]:
+              - generic: JAEC
+          - generic [ref=e66]:
+            - generic [ref=e67]: 0 s
+            - generic [ref=e68]: 2 s
+            - generic [ref=e69]: 4 s
+            - generic [ref=e70]: 6 s
+            - generic [ref=e71]: 8 s
+            - generic [ref=e72]: 10 s
+          - generic [ref=e73]:
+            - generic [ref=e74]: −85 dB
+            - generic [ref=e76]: +25 dB
+            - generic [ref=e77]: 四条共用同一色标
+      - paragraph [ref=e79]: 先听近端 mic，再听算法后；想听基线就放JAEC 参考实现。
+    - generic [ref=e80]:
+      - heading "02 浏览器内推理" [level=2] [ref=e81]:
+        - generic [ref=e82]: "02"
+        - text: 浏览器内推理
+      - paragraph [ref=e83]: 点击下面的按钮，页面会下载 ONNX 模型并用 ONNX Runtime Web（WebAssembly，单线程）重新计算上面这段音频。结果会覆盖算法后播放器，并与预生成的版本逐样本对比。
+      - generic [ref=e84]:
+        - button "在浏览器里跑一遍" [ref=e85] [cursor=pointer]
+        - status [ref=e86]: 模型尚未加载
+    - generic [ref=e87]:
+      - heading "03 试试你自己的音频" [level=2] [ref=e88]:
+        - generic [ref=e89]: "03"
+        - text: 试试你自己的音频
+      - paragraph [ref=e90]: 选两个 16 kHz 单声道 WAV：近端麦克风与远端参考。文件不会上传到任何地方，全部在本地浏览器里处理。其他采样率会做线性重采样。
+      - generic [ref=e91]:
+        - generic [ref=e92] [cursor=pointer]:
+          - generic [ref=e93]: 近端 mic
+          - button "近端 mic 未选择" [ref=e94]
+          - generic [ref=e95]: 未选择
+        - generic [ref=e96] [cursor=pointer]:
+          - generic [ref=e97]: 远端 ref
+          - button "远端 ref 未选择" [ref=e98]
+          - generic [ref=e99]: 未选择
+        - button "处理" [disabled] [ref=e100]
+    - generic [ref=e101]:
+      - heading "04 指标" [level=2] [ref=e102]:
+        - generic [ref=e103]: "04"
+        - text: 指标
+      - paragraph [ref=e104]: 500 个留出测试文件（每个 10 秒）。SI-SDR 对照干净近端语音计算：它是唯一能同时惩罚「残留回声」和「削掉近端」两种失败的单一数字。
+      - table [ref=e105]:
+        - rowgroup [ref=e106]:
+          - row [ref=e107]:
+            - columnheader "指标" [ref=e108]
+            - columnheader "本模型" [ref=e109]
+            - columnheader "已发布参考实现" [ref=e110]
+            - columnheader "验收门槛" [ref=e111]
+        - rowgroup [ref=e112]:
+          - row [ref=e113]:
+            - cell "SI-SDR 均值" [ref=e114]
+            - cell "7.728 dB" [ref=e115]
+            - cell "5.963 dB" [ref=e116]
+            - cell "≥ 6.00" [ref=e117]
+          - row [ref=e118]:
+            - cell "SI-SDR 中位数" [ref=e119]
+            - cell "7.804 dB" [ref=e120]
+            - cell "—" [ref=e121]
+            - cell "≥ 6.00" [ref=e122]
+          - row [ref=e123]:
+            - cell "ERLE 均值" [ref=e124]
+            - cell "8.144 dB" [ref=e125]
+            - cell "6.689 dB" [ref=e126]
+            - cell "≥ 6.00" [ref=e127]
+          - row [ref=e128]:
+            - cell "远端静音段保持度" [ref=e129]
+            - cell "+2.129 dB" [ref=e130]
+            - cell "−0.525 dB" [ref=e131]
+            - cell "≥ −3.00" [ref=e132]
+      - paragraph [ref=e133]: 「远端静音段保持度」是远端不说话时输出与麦克风的能量比：0 dB 表示原样通过，负值表示近端被削。设这一项是为了防止「把所有东西都衰减掉」也能拿高分。
+      - table [ref=e134]:
+        - rowgroup [ref=e135]:
+          - row [ref=e136]:
+            - columnheader "真实声学路径" [ref=e137]
+            - columnheader "本模型" [ref=e138]
+            - columnheader "已发布参考实现" [ref=e139]
+        - rowgroup [ref=e140]:
+          - row [ref=e141]:
+            - cell "官方示例对 · ERLE" [ref=e142]
+            - cell "7.02 dB" [ref=e143]
+            - cell "10.33 dB" [ref=e144]
+          - row [ref=e145]:
+            - cell "同一对 · 近端保持（参考安静的频点）" [ref=e146]
+            - cell "−3.7 dB" [ref=e147]
+            - cell "−7.4 dB" [ref=e148]
+      - paragraph [ref=e149]: 取舍与局限：本模型在官方示例对上比参考实现少消约 3.3 dB 回声，换来近端损伤减半（上表第二行）——门控把参考安静的频点原样透传，是结构性质而非训练出来的。合成线性回声路径（已知干净近端的测试集）上它弱于带减法级的方案，这是「掩码直接乘麦克风」这一类的固有代价。详见仓库 README。
+    - generic [ref=e150]:
+      - heading "05 怎么做的" [level=2] [ref=e151]:
+        - generic [ref=e152]: "05"
+        - text: 怎么做的
+      - img "信号流。远端参考 x(n) 沿顶部依次经过四级：GCC-PHAT 延迟估计（输出标量延迟 tau）、 参考 x(n) 与麦克风 d(n) 先经过一个共享的逐频点白化权重，再做 16 频带特征；GRU 在这些带上预测 257 点掩码，直接乘到麦克风频谱上。同时 GCC-PHAT 对麦克风与参考做互相关，先捕获整体时延，逐帧跟踪器随后跟随，把参考对齐到回声位置。输出 e(n) = mask · d(n)，经逐频点合成权重整形后重叠相加回波形。" [ref=e154]
+      - list [ref=e155]:
+        - listitem [ref=e156]: 延迟估计，两半。GCC-PHAT 互相关经可微 soft-argmax 得到标量延迟（曲线很平，先标准化再做 softmax，否则 soft-argmax 会塌到零）。它只跑一次——开头 1 秒，负责在 ±1 s 全范围内捕获时延（搜索范围 ±10240 样点 = 0.64 s，捕获需要这一秒的余量）。之后是经典、零参数的逐帧跟踪：每 10 ms 对尾随 1 秒做 GCC-PHAT，在当前估计 ±100 样点的带内取最优滞后，泄漏式走 25%——带内的跳变几帧内跟上，整数 argmax 的 ±1 样点抖动到不了对齐。带内而不是同一相关的全局峰，是刻意选择：全局搜索看得见所有竞争者，而最响的不一定是回声——官方示例对上，一个弱但相干的近零滞后远端串音在 PHAT 归一掉电平差之后压过真实的混响峰，全局峰版本锁定在滞后 2 上长达 5 秒，同样权重下 ERLE 4.4 dB 对本跟踪器 7.7 dB。置信门分不开两个相干峰，带内可以——结构性地，它根本不看滞后 2，因为捕获（有监督训练）把它放到了真实路径上。代价明说：单步超过 ±100 样点的路径跳变要重新捕获才能跟上；流式调用开头缓存 1 秒才产出第一个样点（该缓存就是捕获窗），之后唯一延迟是前端固有的 352 样点——实测增长前缀在 1 秒之后与整段离线结果逐样点误差小于 1e-6。
+        - listitem [ref=e157]: 白化。一个学出来的逐频点权重，麦克风和参考共用，把远端的频谱倾斜从特征里归一掉。掩码网络于是只需要学「有多少回声」，不用学「远端是什么颜色」。
+        - listitem [ref=e158]:
+          - text: 掩码，直接乘麦克风。GRU 在白化后的 16 频带能量（麦克风、对齐参考、二者乘积——其中麦克风那一路进了两次，训练时如此，权重按原样保留）上预测 257 点增益，输出就是
+          - code [ref=e159]: e(n) = mask · d(n)
+          - text: 。参考信号不给输出贡献任何能量——它只引导掩码。两条性质因此是结构性的而非训练出来的：麦克风静音则输出精确为零；参考没能量的频点掩码被强制为 1，近端原样通过，无论权重是什么。
+        - listitem [ref=e160]:
+          - text: 远端门。对齐参考某个频点没有能量，那里就没有东西可压，掩码向 1 混合（
+          - code [ref=e161]: 1 + act·(mask−1)
+          - text: ）。这是模型行为上最大的旋钮：开小些压得更多、近端伤得更多，是推理期参数，记录在 checkpoint 里。
+        - listitem [ref=e162]:
+          - text: 合成。一个恒等初始化的逐频点权重整形掩码后的频谱，显式重叠相加还原波形。开头
+          - code [ref=e163]: NFFT−HOP
+          - text: 个样点交叉淡入回麦克风：重叠相加的归一化因子在第 1 个样点处比稳态小四个数量级，否则任何谱修改都会在那里放大成一声爆音。
+      - paragraph [ref=e164]: 两个网络分阶段训练：先只训延迟估计器（用合成路径的精确时延标签），冻结后再训掩码网络。共享输出梯度会让两个目标把时延往相反方向拉。
+  - contentinfo [ref=e165]:
+    - paragraph [ref=e166]:
+      - link "github.com/justa-cai/ali_jaec" [ref=e167] [cursor=pointer]:
+        - /url: https://github.com/justa-cai/ali_jaec
+      - text: · 模型与全部代码均在此仓库
+    - paragraph [ref=e168]: 浏览器推理使用 ONNX Runtime Web (WebAssembly · SIMD · 单线程)。

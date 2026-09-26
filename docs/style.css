@@ -106,3 +106,7 @@ main { flex: 1; padding: 0 1.5rem 1.5rem; max-width: 1200px; width: 100%; margin
 
 footer { padding: 0.9rem 1.5rem; border-top: 1px solid #1d2130; }
 footer p { color: var(--muted); font-size: 0.75rem; }
+
+/* —— 不可听轨道（被静音/非独奏）：整轨变暗 —— */
+.track.is-muted { opacity: 0.38; transition: opacity 0.18s ease; }
+.track { transition: opacity 0.18s ease; }
