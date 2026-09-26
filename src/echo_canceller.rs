@@ -34,6 +34,7 @@ pub struct FrameMetrics {
 
 /// 16 kHz 单声道线性 AEC（AEC3 线性部分全保真移植）。
 pub struct EchoCanceller {
+    suppressor_config: crate::constants::SuppressorConfig,
     /// 未处理的 capture 输入。
     pending: Vec<f32>,
     /// 已处理的输出。
@@ -59,12 +60,18 @@ impl Default for EchoCanceller {
 
 impl EchoCanceller {
     pub fn new() -> Self {
+        Self::with_suppressor_config(Default::default())
+    }
+
+    /// 注入抑制器配置（双讲调优实验用）。
+    pub fn with_suppressor_config(suppressor_config: crate::constants::SuppressorConfig) -> Self {
         Self {
+            suppressor_config,
             pending: Vec::with_capacity(FRAME_SIZE + BLOCK_SIZE),
             ready: Vec::with_capacity(FRAME_SIZE + BLOCK_SIZE),
             linear_ready: Vec::with_capacity(FRAME_SIZE + BLOCK_SIZE),
             render_remainder: Vec::with_capacity(BLOCK_SIZE),
-            block_processor: BlockProcessor::new(),
+            block_processor: BlockProcessor::with_suppressor_config(suppressor_config),
             saturated_microphone_signal: false,
             sum_y2: 0.0,
             sum_e2: 0.0,

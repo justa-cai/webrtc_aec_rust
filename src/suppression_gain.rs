@@ -447,9 +447,17 @@ impl SuppressionGain {
             }
         }
 
-        // GainToNoAudibleEcho（masker = N2）。
+        // GainToNoAudibleEcho（masker = N2；实验开关下用 max(N2, 平滑近端谱)）。
         let mut g_ch = [1.0f32; FFT_LENGTH_BY_2_PLUS_1];
-        gain_to_no_audible_echo(&nearend, &wre, n2, params, &mut g_ch);
+        if cfg.nearend_masker {
+            let mut masker = *n2;
+            for k in 0..FFT_LENGTH_BY_2_PLUS_1 {
+                masker[k] = masker[k].max(nearend[k]);
+            }
+            gain_to_no_audible_echo(&nearend, &wre, &masker, params, &mut g_ch);
+        } else {
+            gain_to_no_audible_echo(&nearend, &wre, n2, params, &mut g_ch);
+        }
         for k in 0..FFT_LENGTH_BY_2_PLUS_1 {
             g_ch[k] = g_ch[k].min(self.max_gain[k]).max(self.min_gain[k]);
             gain[k] = gain[k].min(g_ch[k]);

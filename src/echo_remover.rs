@@ -104,6 +104,7 @@ pub struct EchoRemover {
     e_fft: FftData,
     output: SubtractorOutput,
     // —— 非线性层 ——
+    suppressor_config: SuppressorConfig,
     cng: ComfortNoiseGenerator,
     residual_echo_estimator: ResidualEchoEstimator,
     suppression_gain: SuppressionGain,
@@ -128,7 +129,13 @@ impl Default for EchoRemover {
 
 impl EchoRemover {
     pub fn new() -> Self {
+        Self::with_suppressor_config(SuppressorConfig::default())
+    }
+
+    /// 注入抑制器配置（双讲调优实验用）。
+    pub fn with_suppressor_config(suppressor_config: SuppressorConfig) -> Self {
         Self {
+            suppressor_config,
             subtractor: Subtractor::new(),
             aec_state: AecState::new(),
             render_signal_analyzer: RenderSignalAnalyzer::new(),
@@ -142,7 +149,7 @@ impl EchoRemover {
             output: SubtractorOutput::new(),
             cng: ComfortNoiseGenerator::new(),
             residual_echo_estimator: ResidualEchoEstimator::new(),
-            suppression_gain: SuppressionGain::new(),
+            suppression_gain: SuppressionGain::with_config(&suppressor_config),
             suppression_filter: SuppressionFilter::new(),
             erle_estimator: ErleEstimator::new(),
             ml_ree_suppressor_config: None,
@@ -340,9 +347,9 @@ impl EchoRemover {
 
         // 抑制增益（:524）。ML 激活时使用替换配置。
         let active_suppressor_config: SuppressorConfig = if ml_ree_is_active {
-            self.ml_ree_suppressor_config.unwrap_or_default()
+            self.ml_ree_suppressor_config.unwrap_or(self.suppressor_config)
         } else {
-            SuppressorConfig::default()
+            self.suppressor_config
         };
         // ML 激活沿会触发上游 UpdateStateDependingOnConfig；本实现无 ML 注入
         // 时恒为 false，配置不变。

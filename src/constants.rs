@@ -295,6 +295,9 @@ pub struct SuppressorConfig {
     pub high_frequency_suppression: HighFrequencySuppressionConfig,
     pub floor_first_increase: f32,
     pub conservative_hf_suppression: bool,
+    /// 实验开关（上游无此字段）：emr 掩蔽用 max(N2, 平滑近端谱)——
+    /// 让近端语音参与掩蔽，双讲时减少抑制（调研报告 L4 杠杆）。
+    pub nearend_masker: bool,
 }
 
 impl Default for SuppressorConfig {
@@ -355,6 +358,7 @@ impl Default for SuppressorConfig {
             },
             floor_first_increase: 1e-5,
             conservative_hf_suppression: false,
+            nearend_masker: false,
         }
     }
 }

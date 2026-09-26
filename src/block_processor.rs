@@ -32,10 +32,15 @@ pub struct BlockProcessor {
 
 impl BlockProcessor {
     pub fn new() -> Self {
+        Self::with_suppressor_config(Default::default())
+    }
+
+    /// 注入抑制器配置（双讲调优实验用）。
+    pub fn with_suppressor_config(suppressor_config: crate::constants::SuppressorConfig) -> Self {
         Self {
             render_buffer: RenderDelayBuffer::new(),
             delay_controller: RenderDelayController::new(),
-            echo_remover: EchoRemover::new(),
+            echo_remover: EchoRemover::with_suppressor_config(suppressor_config),
             capture_properly_started: false,
             render_properly_started: false,
             pending_render_event: BufferingEvent::None,
