@@ -33,6 +33,8 @@ cargo run --release --bin demo -- far.wav near.wav out.wav [--linear-out lin.wav
 
 WAV 模式要求 16 kHz 单声道 s16。
 
+![AEC3 处理管线动画](docs/assets/aec_pipeline.svg)
+
 ## 快速理解：一条数据流
 
 ```

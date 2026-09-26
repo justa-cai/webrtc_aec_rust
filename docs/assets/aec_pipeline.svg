@@ -1,0 +1,196 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 620" font-family="'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',system-ui,sans-serif">
+  <!-- ============ 背景 ============ -->
+  <rect width="960" height="620" rx="14" fill="#0f1117"/>
+  <rect x="1" y="1" width="958" height="618" rx="13" fill="none" stroke="#262b3d"/>
+  <text x="480" y="34" text-anchor="middle" fill="#e4e7f0" font-size="19" font-weight="650">WebRTC AEC3 · 处理管线（Rust 移植版）</text>
+
+  <!-- 定义：信号流动虚线 -->
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#8b91a5"/>
+    </marker>
+  </defs>
+
+  <!-- ============ 顶部泳道：远端路径 ============ -->
+  <!-- 远端参考波形 -->
+  <g transform="translate(24,56)">
+    <rect width="150" height="88" rx="10" fill="#171a23" stroke="#262b3d"/>
+    <text x="75" y="20" text-anchor="middle" fill="#ffb454" font-size="12.5" font-weight="650">远端参考 x</text>
+    <path d="M12 62 q8 -22 16 0 t16 0 t16 0 t16 0 t16 0 t16 0 t16 0" fill="none" stroke="#ffb454" stroke-width="2">
+      <animate attributeName="stroke-dashoffset" from="0" to="-64" dur="1.6s" repeatCount="indefinite"/>
+    </path>
+    <path d="M12 62 q8 16 16 0 t16 0 t16 0 t16 0 t16 0 t16 0 t16 0" fill="none" stroke="#ffb454" stroke-width="1.4" opacity="0.5"/>
+  </g>
+  <line x1="174" y1="100" x2="204" y2="100" stroke="#8b91a5" stroke-width="1.6" marker-end="url(#arr)"/>
+
+  <!-- 时延估计 -->
+  <g transform="translate(208,56)">
+    <rect width="158" height="88" rx="10" fill="#171a23" stroke="#262b3d"/>
+    <text x="79" y="20" text-anchor="middle" fill="#4f8cff" font-size="12.5" font-weight="650">时延估计</text>
+    <text x="79" y="36" text-anchor="middle" fill="#8b91a5" font-size="9.5">匹配滤波器组 5×512 + 直方图投票</text>
+    <!-- 扫描指针 -->
+    <rect x="14" y="46" width="130" height="26" rx="5" fill="#0f1117"/>
+    <rect x="16" y="48" width="9" height="22" fill="#4f8cff" opacity="0.35"/>
+    <rect x="40" y="48" width="9" height="22" fill="#4f8cff" opacity="0.3"/>
+    <rect x="64" y="48" width="9" height="22" fill="#4f8cff" opacity="0.25"/>
+    <rect x="88" y="48" width="9" height="22" fill="#4f8cff" opacity="0.2"/>
+    <rect x="112" y="48" width="9" height="22" fill="#4f8cff" opacity="0.15"/>
+    <!-- 锁定峰 -->
+    <rect x="88" y="48" width="9" height="22" fill="#37d4a0">
+      <animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.45;0.6;1" dur="4s" repeatCount="indefinite"/>
+    </rect>
+    <text x="79" y="84" text-anchor="middle" font-size="11" font-weight="650" fill="#37d4a0">
+      d = 164 ms
+      <animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.45;0.6;1" dur="4s" repeatCount="indefinite"/>
+    </text>
+  </g>
+  <line x1="366" y1="100" x2="396" y2="100" stroke="#8b91a5" stroke-width="1.6" marker-end="url(#arr)"/>
+
+  <!-- 对齐缓冲 -->
+  <g transform="translate(400,56)">
+    <rect width="132" height="88" rx="10" fill="#171a23" stroke="#262b3d"/>
+    <text x="66" y="20" text-anchor="middle" fill="#4f8cff" font-size="12.5" font-weight="650">延迟对齐缓冲</text>
+    <text x="66" y="36" text-anchor="middle" fill="#8b91a5" font-size="9.5">回溯 d 块读取参考信号</text>
+    <!-- 滑动窗口示意 -->
+    <g>
+      <rect x="14" y="46" width="104" height="26" rx="5" fill="#0f1117"/>
+      <rect x="14" y="46" width="34" height="26" rx="5" fill="#4f8cff" opacity="0.28">
+        <animate attributeName="x" values="14;84;14" dur="4s" repeatCount="indefinite"/>
+      </rect>
+      <line x1="88" y1="42" x2="88" y2="76" stroke="#37d4a0" stroke-width="1.5" stroke-dasharray="3 3"/>
+    </g>
+    <text x="66" y="84" text-anchor="middle" fill="#8b91a5" font-size="9.5">x̂（与麦克风对齐）</text>
+  </g>
+
+  <!-- 对齐参考分发到滤波器 -->
+  <path d="M532 100 L560 100 L560 196" fill="none" stroke="#8b91a5" stroke-width="1.6" marker-end="url(#arr)"/>
+
+  <!-- ============ 中部泳道 ============ -->
+  <!-- 近端麦克风 -->
+  <g transform="translate(24,166)">
+    <rect width="150" height="96" rx="10" fill="#171a23" stroke="#262b3d"/>
+    <text x="75" y="20" text-anchor="middle" fill="#ff6b81" font-size="12.5" font-weight="650">近端麦克风 y</text>
+    <text x="75" y="34" text-anchor="middle" fill="#8b91a5" font-size="9">近端语音 + 回声</text>
+    <!-- 叠加波形：绿近端 + 红回声 -->
+    <path d="M12 70 q9 -26 18 0 t18 0 t18 0 t18 0 t18 0 t18 0 t18 0" fill="none" stroke="#ff6b81" stroke-width="1.6" opacity="0.85">
+      <animate attributeName="stroke-dashoffset" from="0" to="-72" dur="2s" repeatCount="indefinite"/>
+    </path>
+    <path d="M12 70 q9 20 18 0 t18 0 t18 0 t18 0 t18 0 t18 0 t18 0" fill="none" stroke="#37d4a0" stroke-width="2.2">
+      <animate attributeName="stroke-dashoffset" from="0" to="-72" dur="2s" repeatCount="indefinite"/>
+    </path>
+    <text x="30" y="92" fill="#37d4a0" font-size="8.5">近端</text>
+    <text x="66" y="92" fill="#ff6b81" font-size="8.5">回声</text>
+  </g>
+  <line x1="174" y1="214" x2="204" y2="214" stroke="#8b91a5" stroke-width="1.6" marker-end="url(#arr)"/>
+
+  <!-- 减法节点 -->
+  <g transform="translate(208,182)">
+    <circle cx="32" cy="32" r="24" fill="#1d2130" stroke="#4f8cff" stroke-width="1.5"/>
+    <text x="32" y="38" text-anchor="middle" fill="#e4e7f0" font-size="20">−</text>
+    <text x="32" y="-6" text-anchor="middle" fill="#8b91a5" font-size="9.5">y − ŝ</text>
+  </g>
+  <!-- 滤波器输出 ŝ 进入减法节点（从下方上来） -->
+  <path d="M628 262 L628 236 L248 236 L248 214" fill="none" stroke="#8b91a5" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="430" y="230" text-anchor="middle" fill="#4f8cff" font-size="10">ŝ = H ∗ x̂（回声估计）</text>
+
+  <!-- 自适应滤波器 -->
+  <g transform="translate(536,150)">
+    <rect width="184" height="112" rx="10" fill="#171a23" stroke="#262b3d"/>
+    <text x="92" y="20" text-anchor="middle" fill="#4f8cff" font-size="12.5" font-weight="650">线性自适应滤波器</text>
+    <text x="92" y="35" text-anchor="middle" fill="#8b91a5" font-size="9">分区频域 NLMS · 13 分区</text>
+    <!-- 系数条形收敛动画（8根，从零到高低起伏=冲激响应形状） -->
+    <g transform="translate(20,44)">
+      <rect width="144" height="52" rx="5" fill="#0f1117"/>
+      <rect x="6"  y="46" width="9" height="4"  fill="#4f8cff"><animate attributeName="height" values="4;26;30;30" keyTimes="0;0.4;0.7;1" dur="4s" repeatCount="indefinite"/><animate attributeName="y" values="46;24;20;20" keyTimes="0;0.4;0.7;1" dur="4s" repeatCount="indefinite"/></rect>
+      <rect x="24" y="46" width="9" height="4"  fill="#4f8cff"><animate attributeName="height" values="4;44;48;48" keyTimes="0;0.4;0.7;1" dur="4s" repeatCount="indefinite"/><animate attributeName="y" values="46;6;2;2"   keyTimes="0;0.4;0.7;1" dur="4s" repeatCount="indefinite"/></rect>
+      <rect x="42" y="46" width="9" height="4"  fill="#4f8cff"><animate attributeName="height" values="4;18;20;20" keyTimes="0;0.4;0.7;1" dur="4s" repeatCount="indefinite"/><animate attributeName="y" values="46;32;30;30" keyTimes="0;0.4;0.7;1" dur="4s" repeatCount="indefinite"/></rect>
+      <rect x="60" y="46" width="9" height="4"  fill="#4f8cff"><animate attributeName="height" values="4;10;11;11" keyTimes="0;0.4;0.7;1" dur="4s" repeatCount="indefinite"/><animate attributeName="y" values="46;40;39;39" keyTimes="0;0.4;0.7;1" dur="4s" repeatCount="indefinite"/></rect>
+      <rect x="78" y="46" width="9" height="4"  fill="#4f8cff"><animate attributeName="height" values="4;6;7;7"   keyTimes="0;0.4;0.7;1" dur="4s" repeatCount="indefinite"/><animate attributeName="y" values="46;44;43;43" keyTimes="0;0.4;0.7;1" dur="4s" repeatCount="indefinite"/></rect>
+      <rect x="96" y="46" width="9" height="4"  fill="#4f8cff"><animate attributeName="height" values="4;4;5;5"   keyTimes="0;0.4;0.7;1" dur="4s" repeatCount="indefinite"/><animate attributeName="y" values="46;46;45;45" keyTimes="0;0.4;0.7;1" dur="4s" repeatCount="indefinite"/></rect>
+      <rect x="114" y="46" width="9" height="4" fill="#4f8cff"><animate attributeName="height" values="4;3;3;3"   keyTimes="0;0.4;0.7;1" dur="4s" repeatCount="indefinite"/></rect>
+      <rect x="132" y="46" width="9" height="4" fill="#4f8cff"><animate attributeName="height" values="4;2;2;2"   keyTimes="0;0.4;0.7;1" dur="4s" repeatCount="indefinite"/></rect>
+      <text x="72" y="66" text-anchor="middle" fill="#8b91a5" font-size="8">冲激响应收敛 →</text>
+    </g>
+    <text x="92" y="108" text-anchor="middle" fill="#8b91a5" font-size="9">H += μ·e·x̂ / ‖x̂‖²（双讲自动降步长）</text>
+  </g>
+
+  <!-- e 线性输出 -->
+  <path d="M272 214 L300 214" fill="none" stroke="#8b91a5" stroke-width="1.6" marker-end="url(#arr)"/>
+  <g transform="translate(304,166)">
+    <rect width="150" height="96" rx="10" fill="#171a23" stroke="#262b3d"/>
+    <text x="75" y="20" text-anchor="middle" fill="#4f8cff" font-size="12.5" font-weight="650">线性输出 e</text>
+    <text x="75" y="34" text-anchor="middle" fill="#8b91a5" font-size="9">回声大部分已对消</text>
+    <!-- 残余回声渐隐动画 -->
+    <path d="M12 70 q9 -22 18 0 t18 0 t18 0 t18 0 t18 0 t18 0 t18 0" fill="none" stroke="#ff6b81" stroke-width="1.6">
+      <animate attributeName="opacity" values="0.9;0.45;0.25;0.25" keyTimes="0;0.4;0.7;1" dur="4s" repeatCount="indefinite"/>
+    </path>
+    <path d="M12 70 q9 20 18 0 t18 0 t18 0 t18 0 t18 0 t18 0 t18 0" fill="none" stroke="#37d4a0" stroke-width="2.2">
+      <animate attributeName="stroke-dashoffset" from="0" to="-72" dur="2s" repeatCount="indefinite"/>
+    </path>
+    <text x="75" y="92" text-anchor="middle" fill="#8b91a5" font-size="8.5">残余回声（渐隐 = 对消进行中）</text>
+  </g>
+  <line x1="454" y1="214" x2="484" y2="214" stroke="#8b91a5" stroke-width="1.6" marker-end="url(#arr)"/>
+
+  <!-- NLP -->
+  <g transform="translate(24,300)">
+    <rect width="470" height="118" rx="10" fill="#171a23" stroke="#262b3d"/>
+    <text x="235" y="22" text-anchor="middle" fill="#37d4a0" font-size="13" font-weight="650">非线性抑制（NLP）</text>
+    <text x="235" y="38" text-anchor="middle" fill="#8b91a5" font-size="9.5">残余回声估计 R2 = S2_linear / ERLE ＋ 掩蔽增益 ＋ 舒适噪声</text>
+    <!-- 增益曲线脉冲动画 -->
+    <g transform="translate(24,50)">
+      <rect width="200" height="52" rx="5" fill="#0f1117"/>
+      <path d="M10 44 Q50 44 70 14 T130 14 T190 44" fill="none" stroke="#37d4a0" stroke-width="2">
+        <animate attributeName="stroke-dasharray" values="4 240;240 0;240 0" keyTimes="0;0.5;1" dur="3.2s" repeatCount="indefinite"/>
+      </path>
+      <text x="100" y="66" text-anchor="middle" fill="#8b91a5" font-size="8.5">增益 G：enr/emr 双掩蔽阈斜坡</text>
+    </g>
+    <!-- 舒适噪声注入动画 -->
+    <g transform="translate(246,50)">
+      <rect width="200" height="52" rx="5" fill="#0f1117"/>
+      <circle cx="30" cy="26" r="3" fill="#8b91a5"><animate attributeName="cy" values="26;16;26;34;26" dur="1.8s" repeatCount="indefinite"/></circle>
+      <circle cx="70" cy="26" r="3" fill="#8b91a5"><animate attributeName="cy" values="34;26;18;26;34" dur="1.8s" repeatCount="indefinite"/></circle>
+      <circle cx="110" cy="26" r="3" fill="#8b91a5"><animate attributeName="cy" values="20;30;24;16;20" dur="1.6s" repeatCount="indefinite"/></circle>
+      <circle cx="150" cy="26" r="3" fill="#8b91a5"><animate attributeName="cy" values="28;18;32;22;28" dur="1.9s" repeatCount="indefinite"/></circle>
+      <text x="100" y="66" text-anchor="middle" fill="#8b91a5" font-size="8.5">舒适噪声 √(1−G²)·N 填补频谱</text>
+    </g>
+  </g>
+  <!-- e → NLP 箭头 -->
+  <path d="M379 262 L379 282 L259 282 L259 300" fill="none" stroke="#8b91a5" stroke-width="1.6" marker-end="url(#arr)"/>
+
+  <!-- 最终输出 -->
+  <path d="M494 359 L524 359" fill="none" stroke="#8b91a5" stroke-width="1.6" marker-end="url(#arr)"/>
+  <g transform="translate(528,300)">
+    <rect width="192" height="118" rx="10" fill="#171a23" stroke="#37d4a0" stroke-opacity="0.55"/>
+    <text x="96" y="22" text-anchor="middle" fill="#37d4a0" font-size="13" font-weight="650">最终输出</text>
+    <text x="96" y="38" text-anchor="middle" fill="#8b91a5" font-size="9">近端保留 · 回声压制</text>
+    <!-- 回声彻底消失（只剩绿） -->
+    <path d="M14 72 q10 -24 20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0" fill="none" stroke="#37d4a0" stroke-width="2.4">
+      <animate attributeName="stroke-dashoffset" from="0" to="-80" dur="2s" repeatCount="indefinite"/>
+    </path>
+    <path d="M14 72 q10 10 20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0" fill="none" stroke="#ff6b81" stroke-width="1.2">
+      <animate attributeName="opacity" values="0.5;0.15;0.08;0.08" keyTimes="0;0.45;0.75;1" dur="4s" repeatCount="indefinite"/>
+    </path>
+    <text x="96" y="100" text-anchor="middle" fill="#8b91a5" font-size="8.5">红色回声分量随处理逐步消失</text>
+  </g>
+
+  <!-- ============ 底部：算法要点注解 ============ -->
+  <g transform="translate(24,444)">
+    <rect width="912" height="160" rx="10" fill="#151824" stroke="#262b3d"/>
+    <text x="24" y="26" fill="#e4e7f0" font-size="12.5" font-weight="650">关键算法</text>
+    <text x="24" y="50" fill="#4f8cff" font-size="10.5">① 时延估计</text>
+    <text x="24" y="66" fill="#8b91a5" font-size="9.5">4× 降采样 → 5×512-tap NLMS 匹配滤波器组 →</text>
+    <text x="24" y="80" fill="#8b91a5" font-size="9.5">滑动直方图双门限投票 → 缓冲迟滞对齐（0~600ms）</text>
+    <text x="256" y="50" fill="#4f8cff" font-size="10.5">② 线性 AEC</text>
+    <text x="256" y="66" fill="#8b91a5" font-size="9.5">分区频域 NLMS：H += μ·e·x̂/‖x̂‖²（128 点 FFT，</text>
+    <text x="256" y="80" fill="#8b91a5" font-size="9.5">64 样本块）；双讲时误差功率自动压低步长保护近端</text>
+    <text x="520" y="50" fill="#4f8cff" font-size="10.5">③ 残余回声估计</text>
+    <text x="520" y="66" fill="#8b91a5" font-size="9.5">R2 = S2_linear/ERLE（线性可信）或 X2·增益²（非线性）；</text>
+    <text x="520" y="80" fill="#8b91a5" font-size="9.5">混响尾泄漏积分器；双讲检测切换保守/激进参数</text>
+    <text x="768" y="50" fill="#4f8cff" font-size="10.5">④ 抑制与噪声</text>
+    <text x="768" y="66" fill="#8b91a5" font-size="9.5">enr/emr 双掩蔽阈斜坡增益；功率域速率限制；</text>
+    <text x="768" y="80" fill="#8b91a5" font-size="9.5">√(1−G²)·N 舒适噪声保持听感自然</text>
+    <line x1="24" y1="96" x2="888" y2="96" stroke="#262b3d"/>
+    <text x="24" y="116" fill="#8b91a5" font-size="9.5">动画说明：波形虚线滚动 = 信号流动；条形图高度变化 = 自适应滤波器系数从零收敛到真实回声路径；红色成分渐隐 = 回声被逐步对消与压制。</text>
+    <text x="24" y="136" fill="#8b91a5" font-size="9.5">完整实现：github.com/justa-cai/webrtc_aec_rust · 在线演示：justa-cai.github.io/webrtc_aec_rust</text>
+  </g>
+</svg>

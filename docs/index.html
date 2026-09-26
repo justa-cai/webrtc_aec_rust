@@ -22,25 +22,7 @@
 
 <main>
   <section class="pipeline">
-    <div class="stage">
-      <div class="stage-title">① 远端参考</div>
-      <div class="stage-desc">扬声器播放的信号，AEC 的已知输入</div>
-    </div>
-    <div class="arrow">→</div>
-    <div class="stage">
-      <div class="stage-title">② 近端麦克风</div>
-      <div class="stage-desc">近端语音 + 扬声器回声 + 房间混响</div>
-    </div>
-    <div class="arrow">→</div>
-    <div class="stage">
-      <div class="stage-title">③ 时延对齐 + 线性 AEC</div>
-      <div class="stage-desc">匹配滤波器组估计时延 → 分区频域自适应滤波（NLMS）</div>
-    </div>
-    <div class="arrow">→</div>
-    <div class="stage">
-      <div class="stage-title">④ 非线性抑制（NLP）</div>
-      <div class="stage-desc">残余回声估计 + 掩蔽增益 + 舒适噪声 + 双讲近端保护</div>
-    </div>
+    <img src="assets/aec_pipeline.svg" alt="AEC3 处理管线动画：时延估计 → 线性自适应滤波 → 非线性抑制" style="width:100%;border-radius:10px;">
   </section>
 
   <section id="player">
