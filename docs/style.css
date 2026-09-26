@@ -110,3 +110,16 @@ footer p { color: var(--muted); font-size: 0.75rem; }
 /* —— 不可听轨道（被静音/非独奏）：整轨变暗 —— */
 .track.is-muted { opacity: 0.38; transition: opacity 0.18s ease; }
 .track { transition: opacity 0.18s ease; }
+
+/* —— 右上角 GitHub 角标 —— */
+header { position: relative; }
+.github-corner {
+  position: absolute; top: 0; right: 0;
+  width: 72px; height: 72px;
+  display: block;
+}
+.github-corner svg { width: 100%; height: 100%; display: block; }
+.github-corner:hover svg path:last-child { fill: var(--accent); opacity: 1; }
+@media (max-width: 640px) {
+  .github-corner { width: 56px; height: 56px; }
+}
