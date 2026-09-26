@@ -85,6 +85,25 @@ fn main() {
     let mut groups: Vec<(&str, SuppressorConfig)> = Vec::new();
     groups.push(("baseline(默认)", SuppressorConfig::default()));
 
+    let mut agg = SuppressorConfig::default();
+    // 激进模式：低频保护全开 + 掩蔽 α 降 + 过减加深（牺牲保真换压制）
+    agg.nearend_masker = true;
+    agg.nearend_masker_alpha = 0.3;
+    agg.nearend_tuning.max_dec_factor_lf = 1.0;      // 去掉低频下降限速
+    agg.normal_tuning.max_dec_factor_lf = 1.0;
+    agg.last_lf_smoothing_band = 0;                   // 低频平滑保护只留 bin0
+    agg.nearend_tuning.lf.emr_transparent = 0.1;      // LF emr 底线加深
+    agg.normal_tuning.lf.emr_transparent = 0.1;
+    agg.erle_max_l = 10.0;
+    agg.erle_max_h = 4.0;
+    groups.push(("激进低频", agg));
+
+    let mut agg2 = agg;
+    agg2.nearend_masker = false;                      // 连掩蔽也关：最大压制
+    agg2.dominant_nearend_detection.use_unbounded_echo_spectrum = false;
+    agg2.dominant_nearend_detection.enr_threshold = 0.5;
+    groups.push(("激进无掩蔽", agg2));
+
     let mut ga = SuppressorConfig::default();
     ga.dominant_nearend_detection.use_unbounded_echo_spectrum = false;
     groups.push(("A 有界R2检测", ga));
