@@ -151,7 +151,11 @@ impl EchoRemover {
             residual_echo_estimator: ResidualEchoEstimator::new(),
             suppression_gain: SuppressionGain::with_config(&suppressor_config),
             suppression_filter: SuppressionFilter::new(),
-            erle_estimator: ErleEstimator::new(),
+            erle_estimator: ErleEstimator::with_options(
+                suppressor_config.erle_no_downward,
+                suppressor_config.erle_max_l,
+                suppressor_config.erle_max_h,
+            ),
             ml_ree_suppressor_config: None,
             ml_ree_was_active: false,
             r2: [0.0; FFT_LENGTH_BY_2_PLUS_1],

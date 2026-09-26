@@ -16,6 +16,11 @@ use crate::constants::{
 pub struct ErleEstimator {
     erle: [f32; FFT_LENGTH_BY_2_PLUS_1],
     erle_unbounded: [f32; FFT_LENGTH_BY_2_PLUS_1],
+    /// 实验开关：只升不降（防双讲边界闪变侵蚀 ERLE → R2 偏大 → 检测失灵）。
+    no_downward: bool,
+    /// 实验开关：ERLE 上界覆盖（默认 [4.0, 1.5]）。
+    max_l_override: f32,
+    max_h_override: f32,
 }
 
 impl Default for ErleEstimator {
@@ -35,9 +40,17 @@ fn erle_max(k: usize) -> f32 {
 
 impl ErleEstimator {
     pub fn new() -> Self {
+        Self::with_options(false, ERLE_MAX_L, ERLE_MAX_H)
+    }
+
+    /// 实验选项构造。
+    pub fn with_options(no_downward: bool, max_l: f32, max_h: f32) -> Self {
         Self {
             erle: [ERLE_MIN; FFT_LENGTH_BY_2_PLUS_1],
             erle_unbounded: [ERLE_MIN; FFT_LENGTH_BY_2_PLUS_1],
+            no_downward,
+            max_l_override: max_l,
+            max_h_override: max_h,
         }
     }
 
@@ -60,10 +73,16 @@ impl ErleEstimator {
         if !converged || dominant_nearend {
             return;
         }
+        let max_l = self.max_l_override;
+        let max_h = self.max_h_override;
         for k in 0..FFT_LENGTH_BY_2_PLUS_1 {
             // 观测 ERLE；限制每块最多翻倍（防脉冲虚高）
             let obs = y2[k] / (e2[k] + 1.0);
-            let target = (obs.min(self.erle[k] * 2.0)).clamp(ERLE_MIN, erle_max(k));
+            let cap = if k < FFT_LENGTH_BY_2 / 2 { max_l } else { max_h };
+            let mut target = (obs.min(self.erle[k] * 2.0)).clamp(ERLE_MIN, cap);
+            if self.no_downward && target < self.erle[k] {
+                target = self.erle[k]; // 只升不降
+            }
             self.erle[k] += 0.05 * (target - self.erle[k]);
             let target_ub =
                 (obs.min(self.erle_unbounded[k] * 2.0)).clamp(ERLE_MIN, ERLE_UNBOUNDED_MAX);

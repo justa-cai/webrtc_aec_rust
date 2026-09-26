@@ -85,6 +85,41 @@ fn main() {
     let mut groups: Vec<(&str, SuppressorConfig)> = Vec::new();
     groups.push(("baseline(默认)", SuppressorConfig::default()));
 
+    let mut ga = SuppressorConfig::default();
+    ga.dominant_nearend_detection.use_unbounded_echo_spectrum = false;
+    groups.push(("A 有界R2检测", ga));
+
+    let mut gb = SuppressorConfig::default();
+    gb.erle_no_downward = true;
+    groups.push(("B ERLE只升", gb));
+
+    let mut gc = SuppressorConfig::default();
+    gc.erle_max_l = 10.0;
+    gc.erle_max_h = 4.0;
+    groups.push(("C ERLE界10/4", gc));
+
+    let mut gab = SuppressorConfig::default();
+    gab.dominant_nearend_detection.use_unbounded_echo_spectrum = false;
+    gab.erle_no_downward = true;
+    groups.push(("AB", gab));
+
+    let mut gab2 = SuppressorConfig::default();
+    gab2.dominant_nearend_detection.use_unbounded_echo_spectrum = false;
+    gab2.erle_no_downward = true;
+    gab2.dominant_nearend_detection.enr_threshold = 0.5;
+    groups.push(("AB+enr0.5", gab2));
+
+    let mut full = SuppressorConfig::default();
+    full.dominant_nearend_detection.use_unbounded_echo_spectrum = false;
+    full.erle_no_downward = true;
+    full.erle_max_l = 10.0;
+    full.erle_max_h = 4.0;
+    full.dominant_nearend_detection.enr_threshold = 0.5;
+    full.nearend_tuning.lf.enr_transparent = 1.29;
+    full.nearend_tuning.lf.enr_suppress = 1.3;
+    full.nearend_masker = true;
+    groups.push(("ABC+L1L2+掩蔽", full));
+
     let mut g1 = SuppressorConfig::default();
     g1.dominant_nearend_detection.enr_threshold = 0.5;
     groups.push(("L1a enr=0.5", g1));
@@ -193,7 +228,7 @@ fn main() {
 
     // 多通道对比
     use std::io::Write;
-    let picks = ["baseline(默认)", "L3 近端掩蔽", "L3+NS12dB", "L3+NS18dB High"];
+    let picks = ["baseline(默认)", "L3 近端掩蔽", "AB", "ABC+L1L2+掩蔽"];
     let n = near.len();
     let mut writer = hound::WavWriter::create("tmp/dtune_compare.wav", hound::WavSpec {
         channels: (1 + picks.len()) as u16,
@@ -209,6 +244,6 @@ fn main() {
         }
     }
     writer.finalize().unwrap();
-    println!("多通道对比: tmp/dtune_compare.wav [1]=mic [2]=baseline [3]=L3掩蔽 [4]=L3+NS12dB [5]=L3+NS18dB");
+    println!("多通道对比: tmp/dtune_compare.wav [1]=mic [2]=baseline [3]=L3掩蔽 [4]=AB [5]=全家桶");
     
 }

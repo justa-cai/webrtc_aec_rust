@@ -300,6 +300,11 @@ pub struct SuppressorConfig {
     pub nearend_masker: bool,
     /// 近端掩蔽强度系数 α（0~1]：越小 → 残留回声越少、近端保真略降。
     pub nearend_masker_alpha: f32,
+    /// 实验开关：ERLE 只升不降（防双讲边界闪变侵蚀）。
+    pub erle_no_downward: bool,
+    /// 实验开关：ERLE 上界覆盖（默认 4.0/1.5）。
+    pub erle_max_l: f32,
+    pub erle_max_h: f32,
 }
 
 impl Default for SuppressorConfig {
@@ -362,6 +367,9 @@ impl Default for SuppressorConfig {
             conservative_hf_suppression: false,
             nearend_masker: false,
             nearend_masker_alpha: 1.0,
+            erle_no_downward: false,
+            erle_max_l: 4.0,
+            erle_max_h: 1.5,
         }
     }
 }
